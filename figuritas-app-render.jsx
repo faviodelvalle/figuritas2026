@@ -1,9 +1,80 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 
-const DEFAULT_PRICES = { FWC:3500, FOIL:1300, TOP:430, PHOTO:900, BASE:430 };
+// ══════════════════════════════════════════════
+// CLOUDINARY — Cloud Name: dxen86i43
+// Subí las fotos a Cloudinary con el nombre exacto
+// de la figurita. Ej: ARG17.jpg, MEX1.jpg, NZL6.jpg
+// Carpeta recomendada: "figuritas2026"
+// ══════════════════════════════════════════════
+const CLOUD_NAME = "dxen86i43";
+const CLOUDINARY_BASE = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload`;
+const IMG_OPTS = "q_auto,f_auto,w_300";
+
+// Mapeo completo: key interna → nombre real en Cloudinary (iPhone original)
+const STICKER_MAP = {
+  // FWC Especiales
+  "s00":"IMG_1665","fwc1":"IMG_1666","fwc2":"IMG_1667","fwc3":"IMG_1668",
+  "fwc4":"IMG_1669","fwc5":"IMG_1670","fwc6":"IMG_1671","fwc7":"IMG_1672",
+  "fwc8":"IMG_1673",
+  // FIFA Museum
+  "fwc9":"IMG_1677","fwc10":"IMG_1678","fwc11":"IMG_1679","fwc12":"IMG_1680",
+  "fwc13":"IMG_1681","fwc14":"IMG_1682","fwc15":"IMG_1683","fwc16":"IMG_1684",
+  "fwc17":"IMG_1685","fwc18":"IMG_1686","fwc19":"IMG_1687",
+  // México
+  "MEX_1":"IMG_1688","MEX_2":"IMG_1689","MEX_3":"IMG_1690","MEX_4":"IMG_1691",
+  "MEX_5":"IMG_1692","MEX_6":"IMG_1693","MEX_7":"IMG_1694","MEX_8":"IMG_1695",
+  "MEX_9":"IMG_1696","MEX_10":"IMG_1697","MEX_11":"IMG_1698","MEX_12":"IMG_1699",
+  "MEX_13":"IMG_1700","MEX_14":"IMG_1701","MEX_15":"IMG_1704","MEX_16":"IMG_1705",
+  "MEX_17":"IMG_1706","MEX_18":"IMG_1707","MEX_19":"IMG_1708","MEX_20":"IMG_1709",
+  // Sudáfrica
+  "RSA_1":"IMG_1711","RSA_2":"IMG_1712","RSA_3":"IMG_1713","RSA_4":"IMG_1714",
+  "RSA_5":"IMG_1715","RSA_6":"IMG_1716","RSA_7":"IMG_1717","RSA_8":"IMG_1718",
+  "RSA_9":"IMG_1719","RSA_10":"IMG_1720","RSA_11":"IMG_1721","RSA_12":"IMG_1722",
+  "RSA_13":"IMG_1723","RSA_14":"IMG_1724","RSA_15":"IMG_1725","RSA_16":"IMG_1726",
+  "RSA_17":"IMG_1727","RSA_18":"IMG_1728","RSA_19":"IMG_1729","RSA_20":"IMG_1730",
+  // Corea del Sur
+  "KOR_1":"IMG_1733","KOR_2":"IMG_1734","KOR_3":"IMG_1735","KOR_4":"IMG_1736",
+  "KOR_5":"IMG_1737","KOR_6":"IMG_1738","KOR_7":"IMG_1739","KOR_8":"IMG_1740",
+  "KOR_9":"IMG_1741","KOR_10":"IMG_1742","KOR_11":"IMG_1743","KOR_12":"IMG_1744",
+  "KOR_13":"IMG_1745","KOR_14":"IMG_1746","KOR_15":"IMG_1747","KOR_16":"IMG_1748",
+  "KOR_17":"IMG_1749","KOR_18":"IMG_1750","KOR_19":"IMG_1751","KOR_20":"IMG_1752",
+};
+
+function getStickerImage(key) {
+  const filename = STICKER_MAP[key];
+  if (!filename) return null;
+  return `${CLOUDINARY_BASE}/${IMG_OPTS}/figuritas2026/${filename}.jpg`;
+}
+
+const STICKER_IMAGES = {};
+
+// PRECIOS BASE POR ETIQUETA
+const DEFAULT_PRICES = { FWC:2500, FOIL:1300, TOP:1900, PHOTO:700, BASE:475 };
+
+// PRECIOS ESPECIALES INDIVIDUALES
 const SPECIAL_PRICES_INIT = {
-  "s00":25000,"ARG_1":4500,"ARG_3":45000,"POR_3":20000,"FRA_3":15000,
-  "CRO_3":4000,"ESP_4":10000,"ENG_5":2000,"BRA_3":1000,"NOR_3":7000,
+  // FWC Especiales
+  "s00":25000,   // FWC00 - Logo Panini
+  "fwc1":2500,"fwc2":2500,"fwc3":2500,"fwc4":2500,
+  "fwc5":2500,"fwc6":2500,"fwc7":2500,"fwc8":2500,
+  "fwc9":3900,"fwc10":3900,"fwc11":3900,"fwc12":3900,
+  "fwc13":3900,"fwc14":3900,"fwc15":3900,"fwc16":3900,"fwc17":3900,
+  // Argentina especiales
+  "ARG_1":4500,   // Escudo ARG FOIL
+  "ARG_17":39000, // Messi
+  "ARG_2":2900,   // Dibu Martinez
+  "ARG_19":2900,  // Julian Alvarez
+  // ARG jugadores base = $1900 (TOP_KEYS los marca como TOP → usa DEFAULT_PRICES.TOP)
+  // Estrellas mundiales
+  "POR_15":20000, // Cristiano Ronaldo
+  "FRA_20":15000, // Mbappé
+  "ESP_15":12000, // Lamine Yamal
+  "NOR_15":7500,  // Haaland
+  "ENG_16":2500,  // Harry Kane
+  "NZL_6":10000,  // Tim Payne
+  "COL_17":1000,  // Luis Díaz
+  "BRA_14":1000,  // Vinícius Jr.
+  "CRO_13":6000,  // Modrić
 };
 const PRICE_META = {
   FWC:  {label:"FWC Especial",emoji:"🌟",color:"#92400e",bg:"#fef3c7",border:"#f59e0b"},
@@ -14,79 +85,212 @@ const PRICE_META = {
 };
 const PROVINCES_AR = ["Buenos Aires","CABA","Córdoba","Santa Fe","Mendoza","Tucumán","Entre Ríos","Salta","Misiones","Chaco","Corrientes","Santiago del Estero","San Juan","Jujuy","Río Negro","Neuquén","Formosa","Chubut","San Luis","Catamarca","La Rioja","La Pampa","Santa Cruz","Tierra del Fuego"];
 const COUNTRIES = [
-  {code:"MEX",name:"México",flag:"🇲🇽",conf:"Sede",group:"A",tops:["H. Lozano","S. Giménez","E. Álvarez"]},
-  {code:"USA",name:"Estados Unidos",flag:"🇺🇸",conf:"Sede",group:"B",tops:["C. Pulisic","G. Reyna","T. Adams"]},
-  {code:"CAN",name:"Canadá",flag:"🇨🇦",conf:"Sede",group:"C",tops:["A. Davies","J. David","J. Buchanan"]},
-  {code:"ARG",name:"Argentina",flag:"🇦🇷",conf:"CONMEBOL",group:"B",tops:["L. Messi","J. Álvarez","R. De Paul","E. Mac Allister"]},
-  {code:"BRA",name:"Brasil",flag:"🇧🇷",conf:"CONMEBOL",group:"F",tops:["Vinícius Jr.","Rodrygo","Raphinha","Endrick"]},
-  {code:"URU",name:"Uruguay",flag:"🇺🇾",conf:"CONMEBOL",group:"H",tops:["F. Valverde","D. Núñez","R. Bentancur"]},
-  {code:"COL",name:"Colombia",flag:"🇨🇴",conf:"CONMEBOL",group:"D",tops:["L. Díaz","J. Cuadrado","R. Arias"]},
-  {code:"ECU",name:"Ecuador",flag:"🇪🇨",conf:"CONMEBOL",group:"G",tops:["E. Caicedo","P. Estupiñán","J. Sarmiento"]},
-  {code:"PAR",name:"Paraguay",flag:"🇵🇾",conf:"CONMEBOL",group:"J",tops:["M. Almirón","A. Sanabria","O. Romero"]},
-  {code:"CHI",name:"Chile",flag:"🇨🇱",conf:"CONMEBOL",group:"K",tops:["A. Vidal","C. Aranguiz","B. Brereton"]},
-  {code:"VEN",name:"Venezuela",flag:"🇻🇪",conf:"CONMEBOL",group:"L",tops:["Y. Soteldo","S. Córdova","J. Martínez"]},
-  {code:"BOL",name:"Bolivia",flag:"🇧🇴",conf:"CONMEBOL",group:"L",tops:["C. Morales","B. Saucedo","M. Terceros"]},
-  {code:"PER",name:"Perú",flag:"🇵🇪",conf:"CONMEBOL",group:"I",tops:["P. Guerrero","C. Cueva","L. Iberico"]},
-  {code:"ESP",name:"España",flag:"🇪🇸",conf:"UEFA",group:"C",tops:["Pedri","L. Yamal","R. Morata","Rodri"]},
-  {code:"FRA",name:"Francia",flag:"🇫🇷",conf:"UEFA",group:"F",tops:["K. Mbappé","A. Griezmann","A. Tchouaméni"]},
-  {code:"GER",name:"Alemania",flag:"🇩🇪",conf:"UEFA",group:"D",tops:["F. Wirtz","J. Musiala","T. Müller"]},
-  {code:"ENG",name:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",conf:"UEFA",group:"G",tops:["J. Bellingham","H. Kane","B. Saka"]},
-  {code:"POR",name:"Portugal",flag:"🇵🇹",conf:"UEFA",group:"E",tops:["C. Ronaldo","B. Félix","R. Leão","Vitinha"]},
-  {code:"NED",name:"Países Bajos",flag:"🇳🇱",conf:"UEFA",group:"H",tops:["V. van Dijk","F. de Jong","C. Gakpo"]},
-  {code:"BEL",name:"Bélgica",flag:"🇧🇪",conf:"UEFA",group:"F",tops:["K. De Bruyne","R. Lukaku","J. Doku"]},
-  {code:"ITA",name:"Italia",flag:"🇮🇹",conf:"UEFA",group:"I",tops:["S. Tonali","F. Chiesa","G. Donnarumma"]},
-  {code:"CRO",name:"Croacia",flag:"🇭🇷",conf:"UEFA",group:"G",tops:["L. Modrić","M. Brozović","I. Gvardiol"]},
-  {code:"DEN",name:"Dinamarca",flag:"🇩🇰",conf:"UEFA",group:"K",tops:["C. Eriksen","V. Højlund","A. Christensen"]},
-  {code:"AUT",name:"Austria",flag:"🇦🇹",conf:"UEFA",group:"L",tops:["M. Sabitzer","D. Alaba","C. Baumgartner"]},
-  {code:"CHE",name:"Suiza",flag:"🇨🇭",conf:"UEFA",group:"K",tops:["G. Xhaka","B. Embolo","Y. Shaqiri"]},
-  {code:"NOR",name:"Noruega",flag:"🇳🇴",conf:"UEFA",group:"J",tops:["E. Haaland","M. Ødegaard","A. Sörloth"]},
-  {code:"TUR",name:"Turquía",flag:"🇹🇷",conf:"UEFA",group:"B",tops:["H. Çalhanoğlu","B. Yılmaz","A. Güler"]},
-  {code:"SER",name:"Serbia",flag:"🇷🇸",conf:"UEFA",group:"D",tops:["D. Vlahović","A. Mitrović","N. Milinković-Savić"]},
-  {code:"HUN",name:"Hungría",flag:"🇭🇺",conf:"UEFA",group:"L",tops:["D. Szoboszlai","R. Sallai","A. Schäfer"]},
-  {code:"SCO",name:"Escocia",flag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",conf:"UEFA",group:"C",tops:["A. Robertson","S. McTominay","J. McGinn"]},
-  {code:"MAR",name:"Marruecos",flag:"🇲🇦",conf:"CAF",group:"A",tops:["A. Hakimi","H. Ziyech","Y. En-Nesyri"]},
-  {code:"EGY",name:"Egipto",flag:"🇪🇬",conf:"CAF",group:"F",tops:["M. Salah","T. Mohamed","R. Sobhi"]},
-  {code:"SEN",name:"Senegal",flag:"🇸🇳",conf:"CAF",group:"A",tops:["S. Mané","I. Sarr","E. Mendy"]},
-  {code:"NGR",name:"Nigeria",flag:"🇳🇬",conf:"CAF",group:"B",tops:["V. Osimhen","A. Iwobi","C. Bassey"]},
-  {code:"RSA",name:"Sudáfrica",flag:"🇿🇦",conf:"CAF",group:"A",tops:["P. Tau","B. Zwane","S. Chaine"]},
-  {code:"CMR",name:"Camerún",flag:"🇨🇲",conf:"CAF",group:"E",tops:["V. Aboubakar","A. Onana","K. Toko Ekambi"]},
-  {code:"CIV",name:"Costa de Marfil",flag:"🇨🇮",conf:"CAF",group:"E",tops:["S. Haller","F. Gradel","E. Zaha"]},
-  {code:"GHA",name:"Ghana",flag:"🇬🇭",conf:"CAF",group:"I",tops:["A. Ayew","J. Ayew","M. Kudus"]},
-  {code:"ALG",name:"Argelia",flag:"🇩🇿",conf:"CAF",group:"B",tops:["R. Mahrez","I. Bennacer","A. Belaïli"]},
-  {code:"TUN",name:"Túnez",flag:"🇹🇳",conf:"CAF",group:"H",tops:["Y. Msakni","H. Ben Amor","E. Jaziri"]},
-  {code:"MLI",name:"Malí",flag:"🇲🇱",conf:"CAF",group:"J",tops:["A. Traoré","M. Diallo","H. Kouyaté"]},
-  {code:"NAM",name:"Namibia",flag:"🇳🇦",conf:"CAF",group:"F",tops:["P. Shalulile","P. Jacobs","I. Rusike"]},
-  {code:"GUI",name:"Guinea",flag:"🇬🇳",conf:"CAF",group:"K",tops:["S. Bah","M. Camará","N. Kouyaté"]},
-  {code:"JPN",name:"Japón",flag:"🇯🇵",conf:"AFC",group:"D",tops:["S. Mitoma","J. Ito","H. Morita"]},
-  {code:"KOR",name:"Corea del Sur",flag:"🇰🇷",conf:"AFC",group:"H",tops:["H. Son","J. Hwang","Y. Lee Kang-in"]},
-  {code:"AUS",name:"Australia",flag:"🇦🇺",conf:"AFC",group:"I",tops:["M. Leckie","H. Irvine","J. Hrustic"]},
-  {code:"IRI",name:"Irán",flag:"🇮🇷",conf:"AFC",group:"E",tops:["S. Azmoun","M. Taremi","A. Jahanbakhsh"]},
-  {code:"SAU",name:"Arabia Saudita",flag:"🇸🇦",conf:"AFC",group:"D",tops:["S. Al-Dawsari","Y. Al-Shahrani","F. Al-Bulayhi"]},
-  {code:"IRQ",name:"Irak",flag:"🇮🇶",conf:"AFC",group:"K",tops:["A. Al-Hamdani","A. Karimi","B. Al-Rashidi"]},
-  {code:"MAL",name:"Malasia",flag:"🇲🇾",conf:"AFC",group:"C",tops:["M. Safawi","L. Faisal","A. Zaquan"]},
-  {code:"NZL",name:"Nueva Zelanda",flag:"🇳🇿",conf:"OFC",group:"A",tops:["C. Wood","W. Coyle","T. Papadopoulos"]},
-  {code:"PAN",name:"Panamá",flag:"🇵🇦",conf:"CONCACAF",group:"C",tops:["A. Figuero","R. Murillo","J. Córdoba"]},
-  {code:"CRI",name:"Costa Rica",flag:"🇨🇷",conf:"CONCACAF",group:"E",tops:["K. Navas","J. Campbell","B. Ruiz"]},
+  // GRUPO A
+  {code:"MEX",name:"México",flag:"🇲🇽",conf:"Sede",group:"A",players:["Luis Malagón","Johan Vasquez","Jorge Sánchez","Cesar Montes","Jesus Gallardo","Israel Reyes","Diego Lainez","Carlos Rodriguez","Edson Alvarez","Orbelin Pineda","Marcel Ruiz","Érick Sánchez","Hirving Lozano","Santiago Giménez","Raúl Jiménez","Alexis Vega","Roberto Alvarado","Cesar Huerta"]},
+  {code:"RSA",name:"Sudáfrica",flag:"🇿🇦",conf:"CAF",group:"A",players:["Ronwen Williams","Sipho Chaine","Aubrey Modiba","Samukele Kabini","Mbekezeli Mbokazi","Khulumani Ndamane","Siyabonga Ngezana","Khuliso Mudau","Nkosinathi Sibisi","Teboho Mokoena","Thalente Mbatha","Bathusi Aubaas","Yaya Sithole","Sipho Mbule","Lyle Foster","Iqraam Rayners","Mohau Nkota","Oswin Appollis"]},
+  {code:"KOR",name:"Corea del Sur",flag:"🇰🇷",conf:"AFC",group:"A",players:["Hyeon-woo Jo","Seung-Gyu Kim","Min-jae Kim","Yu-min Cho","Young-woo Seol","Han-beom Lee","Tae-seok Lee","Myung-jae Lee","Jae-sung Lee","In-beom Hwang","Kang-in Lee","Seung-ho Paik","Jens Castrop","Dong-gyeong Lee","Gue-sung Cho","Heung-min Son","Hee-chan Hwang","Hyeon-Gyu Oh"]},
+  {code:"CZE",name:"República Checa",flag:"🇨🇿",conf:"UEFA",group:"A",players:["Matej Kovar","Jindrich Stanek","Ladislav Krejci","Vladimir Coufal","Jaroslav Zeleny","Tomas Holes","David Zima","Michal Sadilek","Lukas Provod","Lukas Cerv","Tomas Soucek","Pavel Sulc","Matej Vydra","Vasil Kusej","Tomas Chory","Vaclav Cerny","Adam Hlozek","Patrik Schick"]},
+  // GRUPO B
+  {code:"CAN",name:"Canadá",flag:"🇨🇦",conf:"Sede",group:"B",players:["Dayne St.Clair","Alphonso Davies","Alistair Johnston","Samuel Adekugbe","Richie Laryea","Derek Cornelius","Moïse Bombito","Kamal Miller","Stephen Eustáquio","Ismaël Koné","Jonathan Osorio","Jacob Shaffelburg","Mathieu Choinière","Niko Sigur","Tajon Buchanan","Liam Millar","Cyle Larin","Jonathan David"]},
+  {code:"QAT",name:"Qatar",flag:"🇶🇦",conf:"AFC",group:"B",players:["Meshaal Barsham","Sultan Albrake","Lucas Mendes","Homam Ahmed","Boualem Khoukhi","Pedro Miguel","Tarek Salman","Mohamed Al-Mannai","Karim Boudiaf","Assim Madibo","Ahmed Fatehi","Mohammed Waad","Abdulaziz Hatem","Hassan Al-Haydos","Edmilson Junior","Akram Hassan Afif","Ahmed Al Ganehi","Almoez Ali"]},
+  {code:"CHE",name:"Suiza",flag:"🇨🇭",conf:"UEFA",group:"B",players:["Gregor Kobel","Yvon Mvogo","Manuel Akanji","Ricardo Rodriguez","Nico Elvedi","Aurèle Amenda","Silvan Widmer","Granit Xhaka","Denis Zakaria","Remo Freuler","Fabian Rieder","Ardon Jashari","Johan Manzambi","Michel Aebischer","Breel Embolo","Ruben Vargas","Dan Ndoye","Zeki Amdouni"]},
+  {code:"BIH",name:"Bosnia y Herzegovina",flag:"🇧🇦",conf:"UEFA",group:"B",players:["Nikola Vasilj","Amer Dedic","Sead Kolasinac","Tarik Muharemovic","Nihad Mujakic","Nikola Katic","Amir Hadziahmetovic","Benjamin Tahirovic","Armin Gigovic","Ivan Sunjic","Ivan Basic","Dzenis Burnic","Esmir Bajraktarevic","Amar Memic","Ermedin Demirovic","Edin Dzeko","Samed Bazdar","Haris Tabakovic"]},
+  // GRUPO C
+  {code:"BRA",name:"Brasil",flag:"🇧🇷",conf:"CONMEBOL",group:"C",players:["Alisson","Bento","Marquinhos","Éder Militão","Gabriel Magalhães","Danilo","Wesley","Lucas Paquetá","Casemiro","Bruno Guimarães","Luiz Henrique","Vinicius Júnior","Rodrygo","João Pedro","Matheus Cunha","Gabriel Martinelli","Raphinha","Estévão"]},
+  {code:"MAR",name:"Marruecos",flag:"🇲🇦",conf:"CAF",group:"C",players:["Yassine Bounou","Munir El Kajoui","Achraf Hakimi","Noussair Mazraoui","Nayef Aguerd","Roman Saiss","Jawad El Yamiq","Adam Masina","Sofyan Amrabat","Azzedine Ounahi","Eliesse Ben Seghir","Bilal El Khannouss","Ismael Saibari","Youssef En-Nesyri","Abde Ezzalzouli","Soufiane Rahimi","Brahim Diaz","Ayoub El Kaabi"]},
+  {code:"HAI",name:"Haití",flag:"🇭🇹",conf:"CONCACAF",group:"C",players:["Johny Placide","Carlens Arcus","Martin Expérience","Jean-Kevin Duverne","Ricardo Adé","Duke Lacroix","Garven Metusala","Hannes Delcroix","Leverton Pierre","Danley Jean Jacques","Jean-Ricner Bellegarde","Christopher Attys","Derrick Etienne Jr","Josue Casimir","Ruben Providence","Duckens Nazon","Louicius Deedson","Frantzdy Pierrot"]},
+  {code:"SCO",name:"Escocia",flag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",conf:"UEFA",group:"C",players:["Angus Gunn","Jack Hendry","Kieran Tierney","Aaron Hickey","Andrew Robertson","Scott McKenna","John Souttar","Anthony Ralston","Grant Hanley","Scott McTominay","Billy Gilmour","Lewis Ferguson","Ryan Christie","Kenny McLean","John McGinn","Lyndon Dykes","Che Adams","Ben Doak"]},
+  // GRUPO D
+  {code:"USA",name:"Estados Unidos",flag:"🇺🇸",conf:"Sede",group:"D",players:["Matt Freese","Chris Richards","Tim Ream","Mark McKenzie","Alex Freeman","Antonee Robinson","Tyler Adams","Tanner Tessmann","Weston McKennie","Christian Roldan","Timothy Weah","Diego Luna","Malik Tillman","Christian Pulisic","Brenden Aaronson","Ricardo Pepi","Haji Wright","Folarin Balogun"]},
+  {code:"PAR",name:"Paraguay",flag:"🇵🇾",conf:"CONMEBOL",group:"D",players:["Roberto Fernandez","Orlando Gill","Gustavo Gomez","Fabián Balbuena","Juan José Cáceres","Omar Alderete","Junior Alonso","Mathías Villasanti","Diego Gomez","Damián Bobadilla","Andres Cubas","Matias Galarza Fonda","Julio Enciso","Alejandro Romero Gamarra","Miguel Almirón","Ramon Sosa","Angel Romero","Antonio Sanabria"]},
+  {code:"AUS",name:"Australia",flag:"🇦🇺",conf:"AFC",group:"D",players:["Mathew Ryan","Joe Gauci","Harry Souttar","Alessandro Circati","Jordan Bos","Aziz Behich","Cameron Burgess","Lewis Miller","Milos Degenek","Jackson Irvine","Riley McGree","Aiden O'Neill","Connor Metcalfe","Patrick Yazbek","Craig Goodwin","Kusini Vengi","Nestory Irankunda","Mohamed Touré"]},
+  {code:"TUR",name:"Turquía",flag:"🇹🇷",conf:"UEFA",group:"D",players:["Ugurcan Cakir","Mert Muldur","Zeki Celik","Abdulkerim Bardakci","Caglar Soyuncu","Merih Demiral","Ferdi Kadioglu","Kaan Ayhan","Ismail Yuksek","Hakan Calhanoglu","Orkun Kokcu","Arda Guler","Irfan Can Kahveci","Yunus Akgun","Can Uzun","Baris Alper Yilmaz","Kerem Akturkoglu","Kenan Yildiz"]},
+  // GRUPO E
+  {code:"GER",name:"Alemania",flag:"🇩🇪",conf:"UEFA",group:"E",players:["Marc-André ter Stegen","Jonathan Tah","David Raum","Nico Schlotterbeck","Antonio Rüdiger","Waldemar Anton","Ridle Baku","Maximilian Mittelstadt","Joshua Kimmich","Florian Wirtz","Felix Nmecha","Leon Goretzka","Jamal Musiala","Serge Gnabry","Kai Havertz","Leroy Sane","Karim Adeyemi","Nick Woltemade"]},
+  {code:"CUW",name:"Curazao",flag:"🇨🇼",conf:"CONCACAF",group:"E",players:["Eloy Room","Armando Obispo","Sherel Floranus","Jurien Gaari","Joshua Brenet","Roshon Van Eijma","Shurandy Sambo","Livano Comenencia","Godfried Roemeratoe","Juninho Bacuna","Leandro Bacuna","Tahith Chong","Kenji Gorre","Jearl Margaritha","Jurgen Locadia","Jeremy Antonisse","Gervane Kastaneer","Sontje Hansen"]},
+  {code:"CIV",name:"Costa de Marfil",flag:"🇨🇮",conf:"CAF",group:"E",players:["Yahia Fofana","Simon Deli","Odilon Kossounou","Wilfried Singo","Ghislain Konan","Jean-Louis Touré","Serge Aurier","Franck Kessié","Ibrahim Sangare","Seko Fofana","Jean Michaël Seri","Oumar Diakité","Nicolas Pépé","Jonathan Bamba","Wilfried Zaha","Sebastien Haller","Simon Adingra","Oumar Diakite"]},
+  {code:"ECU",name:"Ecuador",flag:"🇪🇨",conf:"CONMEBOL",group:"E",players:["Hernán Galíndez","Gonzalo Valle","Piero Hincapié","Pervis Estupiñán","Willian Pacho","Ángelo Preciado","Joel Ordóñez","Moises Caicedo","Alan Franco","Kendry Paez","Pedro Vite","John Yeboah","Leonardo Campana","Gonzalo Plata","Nilson Angulo","Alan Minda","Kevin Rodriguez","Enner Valencia"]},
+  // GRUPO F
+  {code:"NED",name:"Países Bajos",flag:"🇳🇱",conf:"UEFA",group:"F",players:["Bart Verbruggen","Virgil van Dijk","Micky van de Ven","Jurrien Timber","Denzel Dumfries","Nathan Aké","Jeremie Frimpong","Jan Paul van Hecke","Tijjani Reijnders","Ryan Gravenberch","Teun Koopmeiners","Frenkie de Jong","Xavi Simons","Justin Kluivert","Memphis Depay","Donyell Malen","Wout Weghorst","Cody Gakpo"]},
+  {code:"JPN",name:"Japón",flag:"🇯🇵",conf:"AFC",group:"F",players:["Zion Suzuki","Henry H. Mochizuki","Ayumu Seko","Junnosuke Suzuki","Shogo Taniguchi","Tsuyoshi Watanabe","Kaishu Sano","Yuki Soma","Ao Tanaka","Daichi Kamada","Takefusa Kubo","Ritsu Doan","Keito Nakamura","Takumi Minamino","Shuto Machino","Junya Ito","Koki Ogawa","Ayase Ueda"]},
+  {code:"TUN",name:"Túnez",flag:"🇹🇳",conf:"CAF",group:"F",players:["Bechir Ben Said","Aymen Dahmen","Yan Valery","Montassar Talbi","Yassine Meriah","Ali Abdi","Dylan Bronn","Ellyes Skhiri","Aissa Laidouni","Ferjani Sassi","Mohamed Ali Ben Romdhane","Hannibal Mejbri","Elias Achouri","Elias Saad","Hazem Mastouri","Ismael Gharbi","Sayfallah Ltaief","Naim Sliti"]},
+  {code:"SWE",name:"Suecia",flag:"🇸🇪",conf:"UEFA",group:"F",players:["Victor Johansson","Isak Hien","Gabriel Gudmundsson","Emil Holm","Victor N. Lindelöf","Gustaf Lagerbielke","Lucas Bergvall","Hugo Larsson","Jesper Karlström","Yasin Ayari","Mattias Svanberg","Daniel Svensson","Ken Sema","Roony Bardghji","Dejan Kulusevski","Anthony Elanga","Alexander Isak","Viktor Gyökeres"]},
+  // GRUPO G
+  {code:"BEL",name:"Bélgica",flag:"🇧🇪",conf:"UEFA",group:"G",players:["Thibaut Courtois","Arthur Theate","Timothy Castagne","Zeno Debast","Brandon Mechele","Maxim De Cuyper","Thomas Meunier","Youri Tielemans","Amadou Onana","Nicolas Raskin","Alexis Saelemaekers","Hans Vanaken","Kevin De Bruyne","Jérémy Doku","Charles De Ketelaere","Leandro Trossard","Loïs Openda","Romelu Lukaku"]},
+  {code:"EGY",name:"Egipto",flag:"🇪🇬",conf:"CAF",group:"G",players:["Mohamed El Shenawy","Mohamed Hany","Mohamed Hamdy","Yasser Ibrahim","Khaled Sobhi","Ramy Rabia","Hossam Abdelmaguid","Ahmed Fatouh","Marwan Attia","Zizo","Hamdy Fathy","Mohamed Lasheen","Emam Ashour","Osama Faisal","Mohamed Salah","Mostafa Mohamed","Trezeguet","Omar Marmoush"]},
+  {code:"IRI",name:"Irán",flag:"🇮🇷",conf:"AFC",group:"G",players:["Alireza Beiranvand","Morteza Pouraliganji","Ehsan Hajsafi","Milad Mohammadi","Shojae Khalilzadeh","Ramin Rezaeian","Hossein Kanaani","Sadegh Moharrami","Saleh Hardani","Saeed Ezatolahi","Saman Ghoddos","Omid Noorafkan","Roozbeh Cheshmi","Mohammad Mohebi","Sardar Azmoun","Mehdi Taremi","Alireza Jahanbakhsh","Ali Gholizadeh"]},
+  {code:"NZL",name:"Nueva Zelanda",flag:"🇳🇿",conf:"OFC",group:"G",players:["Max Crocombe","Alex Paulsen","Michael Boxall","Liberato Cacace","Tim Payne","Tyler Bindon","Francis de Vries","Finn Surman","Joe Bell","Sarpreet Singh","Ryan Thomas","Matthew Garbett","Marko Stamenić","Ben Old","Chris Wood","Elijah Just","Callum McCowatt","Kosta Barbarouses"]},
+  // GRUPO H
+  {code:"ESP",name:"España",flag:"🇪🇸",conf:"UEFA",group:"H",players:["Unai Simon","Robin Le Normand","Aymeric Laporte","Dean Huijsen","Pedro Porro","Dani Carvajal","Marc Cucurella","Martín Zubimendi","Rodri","Pedri","Fabian Ruiz","Mikel Merino","Lamine Yamal","Dani Olmo","Nico Williams","Ferran Torres","Álvaro Morata","Mikel Oyarzabal"]},
+  {code:"CPV",name:"Cabo Verde",flag:"🇨🇻",conf:"CAF",group:"H",players:["Vozinha","Logan Costa","Pico","Diney","Steven Moreira","Wagner Pina","Joao Paulo","Yannick Semedo","Kevin Pina","Patrick Andrade","Jamiro Monteiro","Deroy Duarte","Garry Rodrigues","Jovane Cabral","Ryan Mendes","Dailon Livramento","Willy Semedo","Bebe"]},
+  {code:"KSA",name:"Arabia Saudita",flag:"🇸🇦",conf:"AFC",group:"H",players:["Nawaf Alaqidi","Abdulrahman Al-Sanbi","Saud Abdulhamid","Nawaf Bouwashl","Jihad Thakri","Moteb Al-Harbi","Hassan Altambakti","Musab Aljuwayr","Ziyad Aljohani","Abdullah Alkhaibari","Nasser Aldawsari","Saleh Abu Alshamat","Marwan Alsahafi","Salem Aldawsari","Abdulrahman Al-Aboud","Feras Akbrikan","Saleh Alshehri","Abdullah Al-Hamdan"]},
+  {code:"URU",name:"Uruguay",flag:"🇺🇾",conf:"CONMEBOL",group:"H",players:["Sergio Rochet","Santiago Mele","Ronald Araujo","José María Giménez","Sebastian Caceres","Mathias Olivera","Guillermo Varela","Nahitan Nandez","Federico Valverde","Giorgian De Arrascaeta","Rodrigo Bentancur","Manuel Ugarte","Nicolás de la Cruz","Maxi Araujo","Darwin Núñez","Federico Viñas","Rodrigo Aguirre","Facundo Pellistri"]},
+  // GRUPO I
+  {code:"FRA",name:"Francia",flag:"🇫🇷",conf:"UEFA",group:"I",players:["Mike Maignan","Alphonse Areola","Jules Koundé","Dayot Upamecano","William Saliba","Theo Hernandez","Lucas Hernandez","Eduardo Camavinga","Aurélien Tchouaméni","Adrien Rabiot","Antoine Griezmann","Ousmane Dembélé","Marcus Thuram","Randal Kolo Muani","Bradley Barcola","Kylian Mbappé","Kingsley Coman","Matteo Guendouzi"]},
+  {code:"SEN",name:"Senegal",flag:"🇸🇳",conf:"CAF",group:"I",players:["Edouard Mendy","Yehvann Diouf","Moussa Niakhaté","Abdoulaye Seck","Ismail Jakobs","El Hadji Malick Diouf","Kalidou Koulibaly","Idrissa Gana Gueye","Pape Matar Sarr","Pape Gueye","Habib Diarra","Lamine Camara","Sadio Mane","Ismaïla Sarr","Boulaye Dia","Iliman Ndiaye","Nicolas Jackson","Krepin Diatta"]},
+  {code:"NOR",name:"Noruega",flag:"🇳🇴",conf:"UEFA",group:"I",players:["Orjan Nyland","Julian Ryerson","Leo Ostigård","Kristoffer Ajer","Marcus Pedersen","David Wolfe","Torbjørn Heggem","Morten Thorsby","Martin Ødegaard","Sander Berge","Andreas Schjelderup","Patrick Berg","Erling Haaland","Alexander Sørloth","Aron Dønnum","Jorgen Larsen","Antonio Nusa","Oscar Bobb"]},
+  {code:"IRQ",name:"Irak",flag:"🇮🇶",conf:"AFC",group:"I",players:["Jalal Hassan","Rebin Sulaka","Hussein Ali","Akam Hashem","Merchas Doski","Zaid Tahseen","Manaf Younis","Zidane Iqbal","Amir Al-Ammari","Ibrahim Bavesh","Ali Jasim","Youssef Amyn","Aimar Sher","Marko Farji","Osama Rashid","Ali Al-Hamadi","Aymen Hussein","Mohanad Ali"]},
+  // GRUPO J
+  {code:"ARG",name:"Argentina",flag:"🇦🇷",conf:"CONMEBOL",group:"J",players:["Emiliano Martinez","Nahuel Molina","Cristian Romero","Nicolas Otamendi","Nicolas Tagliafico","Leonardo Balerdi","Enzo Fernandez","Alexis Mac Allister","Rodrigo De Paul","Exequiel Palacios","Leandro Paredes","Nico Paz","Franco Mastantuono","Nico Gonzalez","Lionel Messi","Lautaro Martinez","Julian Alvarez","Giuliano Simeone"]},
+  {code:"ALG",name:"Argelia",flag:"🇩🇿",conf:"CAF",group:"J",players:["Alexis Guendouz","Ramy Bensebaini","Youcef Atal","Rayan Aït-Nouri","Mohamed Amine Tougai","Aïssa Mandi","Ismael Bennacer","Houssem Aqar","Hicham Boudaoui","Ramiz Zerrouki","Nabil Bentalab","Farés Chaibi","Riyad Mahrez","Said Benrahma","Anis Hadj Moussa","Amine Gouiri","Baghdad Bounedjah","Mohammed Amoura"]},
+  {code:"AUT",name:"Austria",flag:"🇦🇹",conf:"UEFA",group:"J",players:["Alexander Schlager","Patrick Pentz","David Alaba","Kevin Danso","Philipp Lienhart","Stefan Posch","Philipp Mwene","Alexander Prass","Xaver Schlager","Marcel Sabitzer","Konrad Laimer","Florian Grillitsch","Nicolas Seiwald","Romano Schmid","Patrick Wimmer","Christoph Baumgartner","Michael Gregoritsch","Marko Arnautović"]},
+  {code:"JOR",name:"Jordania",flag:"🇯🇴",conf:"AFC",group:"J",players:["Yazeed Abulaila","Ihsan Haddad","Mohammad Abu Hashish","Yazan Al-Arab","Abdallah Nasib","Saleem Obaid","Mohammad Abualnadi","Ibrahim Saadeh","Nizar Al-Rashdan","Noor Al-Rawabdeh","Mohannad Abu Taha","Amer Jamous","Musa Al-Taamari","Yazan Al-Naimat","Mahmoud Al-Mardi","Ali Olwan","Mohammad Abu Zrayq","Ibrahim Sabra"]},
+  // GRUPO K
+  {code:"POR",name:"Portugal",flag:"🇵🇹",conf:"UEFA",group:"K",players:["Diogo Costa","Jose Sa","Ruben Dias","João Cancelo","Diogo Dalot","Nuno Mendes","Gonçalo Inácio","Bernardo Silva","Bruno Fernandes","Ruben Neves","Vitinha","João Neves","Cristiano Ronaldo","Francisco Trincao","João Felix","Gonçalo Ramos","Pedro Neto","Rafael Leão"]},
+  {code:"COL",name:"Colombia",flag:"🇨🇴",conf:"CONMEBOL",group:"K",players:["Camilo Vargas","Stephenson Maldonado","Dávinson Sánchez","Jhon Lucumí","Carlos Cuesta","Déiver Machado","Daniel Muñoz","Santiago Arias","Richard Ríos","Mateus Uribe","Juan Cuadrado","Jefferson Lerma","Jorge Carrascal","Jhon Arias","Luis Díaz","James Rodríguez","Rafael Santos Borré","Radamel Falcao"]},
+  {code:"UZB",name:"Uzbekistán",flag:"🇺🇿",conf:"AFC",group:"K",players:["Eldorbek Suyunov","Jasurbek Yakhshiboev","Sherzod Nishonov","Eldor Shomurodov","Jasur Yakhshiboev","Otabek Shukurov","Khojiakbar Alijonov","Jaloliddin Masharipov","Ulugbek Asrorov","Dostonbek Khamdamov","Oston Urunov","Asilbek Ismatov","Akbar Djuraev","Ikromjon Alibaev","Khurshid Makhmudov","Laziz Karimov","Aziz Hamroyev","Shokhrukh Kholmatov"]},
+  {code:"COD",name:"DR Congo",flag:"🇨🇩",conf:"CAF",group:"K",players:["Joël Kiassumbua","Lionel Mpasi","Chancel Mbemba","Issama Mpeko","Marcel Tisserand","Héritier Luvumbu","Yoane Wissa","Paul-José Mpoku","Arthur Masuaku","Glody Lilepo","Cédric Bakambu","Fiston Mayele","Merveille Bope Bokadi","Théo Bongonda","Wilfried Zaha","Silas Wissa","Meschak Elia","Jordan Ikoko"]},
+  // GRUPO L
+  {code:"ENG",name:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",conf:"UEFA",group:"L",players:["Jordan Pickford","Dean Henderson","Kyle Walker","John Stones","Ezri Konsa","Marc Guehi","Luke Shaw","Kobbie Mainoo","Declan Rice","Trent Alexander-Arnold","Phil Foden","Jude Bellingham","Bukayo Saka","Cole Palmer","Marcus Rashford","Harry Kane","Jarrod Bowen","Ollie Watkins"]},
+  {code:"CRO",name:"Croacia",flag:"🇭🇷",conf:"UEFA",group:"L",players:["Dominik Livaković","Ivica Ivušić","Josip Juranović","Duje Ćaleta-Car","Joško Gvardiol","Borna Sosa","Martin Erlić","Josip Stanišić","Mateo Kovačić","Marcelo Brozović","Mario Pašalić","Lovro Majer","Luka Modrić","Ante Budimir","Ivan Perišić","Luka Ivanušec","Marko Pjaca","Bruno Petković"]},
+  {code:"GHA",name:"Ghana",flag:"🇬🇭",conf:"CAF",group:"L",players:["Lawrence Ati Zigi","Joseph Wollacott","Gideon Mensah","Mohammed Salisu","Alexander Djiku","Andrew Kyeremateng","Tariq Lamptey","Daniel Amartey","Salis Abdul Samed","Thomas Partey","Caleb Yirenkyi","Abdul Issahaku Fatawu","Kamaldeen Sulemana","Mohammed Kudus","Inaki Williams","Jordan Ayew","Andre Ayew","Antoine Semenyo"]},
+  {code:"PAN",name:"Panamá",flag:"🇵🇦",conf:"CONCACAF",group:"L",players:["Orlando Mosquera","Luis Mejia","Fidel Escobar","Andres Andrade","Michael Amir Murillo","Eric Davis","Jose Cordoba","Cesar Blackman","Cristian Martinez","Aníbal Godoy","Adalberto Carrasquilla","Édgar Bárcenas","Carlos Harvey","Ismael Díaz","Jose Fajardo","Cecilio Waterman","Jose Luiz Rodriguez","Alberto Quintero"]},
 ];
-const PLAYER_ROLES = ["Arquero titular","Arquero suplente","Defensor central 1","Defensor central 2","Lateral derecho","Lateral izquierdo","Mediocampista def.","Mediocampista central","Mediocampista of.","Extremo derecho","Extremo izquierdo","Delantero centro","Volante box-to-box","Segundo delantero","Comodín ofensivo","Promesa joven","Capitán","Referente"];
-function buildCountryStickers(c){const ss=[];ss.push({key:`${c.code}_1`,num:`${c.code}1`,name:"Escudo oficial",type:"FOIL"});ss.push({key:`${c.code}_2`,num:`${c.code}2`,name:"Formación grupal",type:"PHOTO"});PLAYER_ROLES.forEach((r,i)=>ss.push({key:`${c.code}_${i+3}`,num:`${c.code}${i+3}`,name:c.tops?.[i]||r,type:c.tops?.[i]?"TOP":"BASE"}));return ss;}
+// TOP players por país para precio especial
+const TOP_KEYS={
+  // Argentina — todos los jugadores salen $1900 (TOP), salvo los especiales
+  ARG:["ARG_2","ARG_3","ARG_4","ARG_5","ARG_6","ARG_7","ARG_8","ARG_9","ARG_10","ARG_11","ARG_12","ARG_14","ARG_15","ARG_16","ARG_17","ARG_18","ARG_19","ARG_20"],
+  BRA:["BRA_14","BRA_15","BRA_19"],
+  FRA:["FRA_20","FRA_15","FRA_9"],
+  ESP:["ESP_15","ESP_11","ESP_10"],
+  POR:["POR_15","POR_9","POR_10"],
+  ENG:["ENG_16","ENG_14","ENG_15"],
+  GER:["GER_11","GER_15","GER_17"],
+  NOR:["NOR_15","NOR_10"],
+  EGY:["EGY_17","EGY_20"],
+  NED:["NED_3","NED_20","NED_14"],
+  URU:["URU_10","URU_17"],
+  BEL:["BEL_15","BEL_20"],
+  CRO:["CRO_17"],
+  SEN:["SEN_15","SEN_16"],
+  MAR:["MAR_4","MAR_16"],
+};
+// Estructura real Panini 2026: #1=FOIL, #2-#12=jugadores, #13=FOTO, #14-#20=jugadores
+function buildCountryStickers(c){
+  const code=c.code; const pl=c.players||[]; const ss=[];
+  ss.push({key:`${code}_1`,num:`${code}1`,name:"Escudo oficial",type:"FOIL"});
+  pl.slice(0,11).forEach((name,i)=>{const k=`${code}_${i+2}`;ss.push({key:k,num:`${code}${i+2}`,name,type:TOP_KEYS[code]?.includes(k)?"TOP":"BASE"});});
+  ss.push({key:`${code}_13`,num:`${code}13`,name:"Foto grupal",type:"PHOTO"});
+  pl.slice(11,18).forEach((name,i)=>{const k=`${code}_${i+14}`;ss.push({key:k,num:`${code}${i+14}`,name,type:TOP_KEYS[code]?.includes(k)?"TOP":"BASE"});});
+  return ss;
+}
 const FWC_STICKERS=[{key:"s00",num:"00",name:"Logo Panini",type:"FWC"},{key:"fwc1",num:"FWC1",name:"Emblema Oficial",type:"FWC"},{key:"fwc2",num:"FWC2",name:"Emblema (var.)",type:"FWC"},{key:"fwc3",num:"FWC3",name:"Mascotas",type:"FWC"},{key:"fwc4",num:"FWC4",name:"Slogan Oficial",type:"FWC"},{key:"fwc5",num:"FWC5",name:"Balón Oficial",type:"FWC"},{key:"fwc6",num:"FWC6",name:"Canadá Sede",type:"FWC"},{key:"fwc7",num:"FWC7",name:"México Sede",type:"FWC"},{key:"fwc8",num:"FWC8",name:"USA Sede",type:"FWC"},{key:"fwc9",num:"FWC9",name:"MetLife Stadium",type:"FWC"},{key:"fwc10",num:"FWC10",name:"Rose Bowl",type:"FWC"},{key:"fwc11",num:"FWC11",name:"Estadio Azteca",type:"FWC"},{key:"fwc12",num:"FWC12",name:"SoFi Stadium",type:"FWC"},{key:"fwc13",num:"FWC13",name:"Estadio Dallas",type:"FWC"},{key:"fwc14",num:"FWC14",name:"Estadio Vancouver",type:"FWC"},{key:"fwc15",num:"FWC15",name:"Estadio Atlanta",type:"FWC"},{key:"fwc16",num:"FWC16",name:"Estadio Seattle",type:"FWC"},{key:"fwc17",num:"FWC17",name:"Estadio Toronto",type:"FWC"}];
 const ALL_STICKERS=[...FWC_STICKERS,...COUNTRIES.flatMap(c=>buildCountryStickers(c))];
 const DEFAULT_PRODUCTS = [
-  {id:"p1",name:"Sobre Panini individual",desc:"1 sobre original cerrado · 7 figuritas",price:1500,stock:200,emoji:"📦",category:"sobre"},
-  {id:"p2",name:"Pack 10 sobres",desc:"10 sobres Panini cerrados originales",price:12000,stock:50,emoji:"📦",category:"sobre"},
-  {id:"p3",name:"Pack 25 sobres",desc:"25 sobres cerrados — mejor precio",price:28000,stock:30,emoji:"📦",category:"sobre"},
-  {id:"p4",name:"Pack 50 sobres",desc:"50 sobres — el mejor precio por sobre",price:52000,stock:15,emoji:"📦",category:"sobre"},
-  {id:"p5",name:"Lote 50 figuritas",desc:"50 figuritas variadas sin repetir",price:18000,stock:20,emoji:"🎴",category:"lote"},
-  {id:"p6",name:"Lote 100 figuritas",desc:"100 figuritas variadas sin repetir",price:33000,stock:10,emoji:"🎴",category:"lote"},
-  {id:"p7",name:"Lote ARGENTINA completo",desc:"Las 20 figuritas de Argentina (con Messi)",price:95000,stock:5,emoji:"🇦🇷",category:"lote"},
-  {id:"p8",name:"Álbum vacío + 10 sobres",desc:"Álbum oficial Panini vacío + 10 sobres",price:22000,stock:8,emoji:"📖",category:"album"},
-  {id:"p9",name:"Álbum COMPLETO sin pegar",desc:"Álbum con las 980 figuritas sin pegar",price:850000,stock:2,emoji:"🏆",category:"album"},
-  {id:"p10",name:"Sobre Coca-Cola cerrado",desc:"Edición especial Coca-Cola · coleccionable",price:3500,stock:40,emoji:"🥤",category:"cocacola"},
-  {id:"p11",name:"Pack 5 sobres Coca-Cola",desc:"5 sobres edición Coca-Cola cerrados",price:15000,stock:15,emoji:"🥤",category:"cocacola"},
+  // SOBRES
+  {id:"p1", name:"Sobre Panini individual",       desc:"1 sobre original cerrado · 7 figuritas al azar",              price:2400,  stock:500, emoji:"📦", category:"sobre"},
+  {id:"p2", name:"Pack 50 sobres Panini",         desc:"50 sobres originales · precio especial por pack",             price:23000, stock:50,  emoji:"📦", category:"sobre"},
+  {id:"p3", name:"Pack 100 sobres Panini",        desc:"100 sobres · el mejor precio por sobre",                      price:22900, stock:30,  emoji:"📦", category:"sobre"},
+  {id:"p4", name:"Pack 500 sobres Panini",        desc:"500 sobres · precio mayorista",                               price:22500, stock:10,  emoji:"📦", category:"sobre"},
+  {id:"p5", name:"Pack 1000 sobres + 10 álbumes", desc:"1000 sobres + 10 álbumes Panini Sticker Collection original", price:22000, stock:5,   emoji:"🏆", category:"sobre"},
+  // LOTES PARA ARMAR TU ÁLBUM
+  {id:"p6", name:"Lote 100 figuritas al azar",    desc:"5 escudos FOIL + 95 jugadores comunes · sin repetir",         price:39000, stock:20,  emoji:"🎴", category:"lote"},
+  {id:"p7", name:"Lote 200 figuritas al azar",    desc:"10 escudos FOIL + 190 jugadores comunes · sin repetir",       price:78000, stock:10,  emoji:"🎴", category:"lote"},
+  {id:"p8", name:"Lote Argentina completo",        desc:"Las 20 figuritas de Argentina sin pegar · con Messi ARG17",  price:75000, stock:5,   emoji:"🇦🇷", category:"lote"},
+  // ÁLBUMES
+  {id:"p9", name:"Álbum COMPLETO 980 figuritas",   desc:"980 figuritas para pegar + álbum tapa dura de regalo",       price:590000,stock:2,   emoji:"📖", category:"album"},
+  // COCA-COLA
+  {id:"p10",name:"Sobre Coca-Cola cerrado",        desc:"Sobre edición especial Coca-Cola · coleccionable",           price:3500,  stock:40,  emoji:"🥤", category:"cocacola"},
 ];
-const WA_NUM="5491100000000", IG_HANDLE="@figuritasmundial2026", WA_DISPLAY="+54 9 11 0000-0000", ADMIN_PW="admin2026", RES_MINS=20;
-const B={dark:"#0f172a",mid:"#1e3a5f",acc:"#2563eb",tf:"'Bebas Neue',cursive"};
+
+// ═══════════════════════════════════════════════════════
+// EXTRAS PANINI 2026 — 20 jugadores × 4 versiones
+// Fuente oficial: paninigroup.com/en/us/ExtraStickers
+// Aparecen 1 cada 100 sobres aprox. No van en el álbum.
+// ═══════════════════════════════════════════════════════
+const EXTRA_PLAYERS = [
+  {id:"ext_ARG", player:"Lionel Messi",      country:"Argentina",   flag:"🇦🇷", code:"ARG"},
+  {id:"ext_BEL", player:"Jérémy Doku",       country:"Bélgica",     flag:"🇧🇪", code:"BEL"},
+  {id:"ext_BRA", player:"Vinícius Júnior",   country:"Brasil",      flag:"🇧🇷", code:"BRA"},
+  {id:"ext_CAN", player:"Alphonso Davies",   country:"Canadá",      flag:"🇨🇦", code:"CAN"},
+  {id:"ext_COL", player:"Luis Díaz",         country:"Colombia",    flag:"🇨🇴", code:"COL"},
+  {id:"ext_CRO", player:"Luka Modrić",       country:"Croacia",     flag:"🇭🇷", code:"CRO"},
+  {id:"ext_ECU", player:"Moisés Caicedo",    country:"Ecuador",     flag:"🇪🇨", code:"ECU"},
+  {id:"ext_EGY", player:"Mohamed Salah",     country:"Egipto",      flag:"🇪🇬", code:"EGY"},
+  {id:"ext_ENG", player:"Jude Bellingham",   country:"Inglaterra",  flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", code:"ENG"},
+  {id:"ext_FRA", player:"Kylian Mbappé",     country:"Francia",     flag:"🇫🇷", code:"FRA"},
+  {id:"ext_GER", player:"Florian Wirtz",     country:"Alemania",    flag:"🇩🇪", code:"GER"},
+  {id:"ext_KOR", player:"Heung-min Son",     country:"Corea del Sur",flag:"🇰🇷",code:"KOR"},
+  {id:"ext_MEX", player:"Raúl Jiménez",      country:"México",      flag:"🇲🇽", code:"MEX"},
+  {id:"ext_MAR", player:"Achraf Hakimi",     country:"Marruecos",   flag:"🇲🇦", code:"MAR"},
+  {id:"ext_NED", player:"Cody Gakpo",        country:"Países Bajos",flag:"🇳🇱", code:"NED"},
+  {id:"ext_NOR", player:"Erling Haaland",    country:"Noruega",     flag:"🇳🇴", code:"NOR"},
+  {id:"ext_POR", player:"Cristiano Ronaldo", country:"Portugal",    flag:"🇵🇹", code:"POR"},
+  {id:"ext_ESP", player:"Lamine Yamal",      country:"España",      flag:"🇪🇸", code:"ESP"},
+  {id:"ext_URU", player:"Federico Valverde", country:"Uruguay",     flag:"🇺🇾", code:"URU"},
+  {id:"ext_USA", player:"Christian Pulisic", country:"EE.UU.",      flag:"🇺🇸", code:"USA"},
+];
+const EXTRA_VERSIONS = [
+  {key:"base",   label:"Base (Púrpura)", color:"#6d28d9", bg:"#ede9fe", border:"#8b5cf6", rarity:"Común",      price:10000},
+  {key:"bronze", label:"Bronce",         color:"#92400e", bg:"#fef3c7", border:"#d97706", rarity:"Poco común", price:19000},
+  {key:"silver", label:"Plata",          color:"#475569", bg:"#f1f5f9", border:"#94a3b8", rarity:"Rara",       price:25000},
+  {key:"gold",   label:"Oro",            color:"#78350f", bg:"#fef9c3", border:"#eab308", rarity:"Ultra rara", price:35000},
+];
+// Precios especiales por jugador en Extras
+const EXTRA_SPECIAL_PRICES = {
+  // Messi
+  "ext_ARG_base":25000,"ext_ARG_bronze":40000,"ext_ARG_silver":95000,"ext_ARG_gold":290000,
+  // Ronaldo (~$10k menos que Messi en promedio)
+  "ext_POR_base":20000,"ext_POR_bronze":32000,"ext_POR_silver":82000,"ext_POR_gold":250000,
+  // Mbappé (+$15k a cada versión)
+  "ext_FRA_base":25000,"ext_FRA_bronze":34000,"ext_FRA_silver":40000,"ext_FRA_gold":50000,
+  // Haaland (+$5k a cada versión)
+  "ext_NOR_base":15000,"ext_NOR_bronze":24000,"ext_NOR_silver":30000,"ext_NOR_gold":40000,
+};
+function getExtraPrice(playerId, versionKey) {
+  const k=`${playerId}_${versionKey}`;
+  if(EXTRA_SPECIAL_PRICES[k]) return EXTRA_SPECIAL_PRICES[k];
+  return EXTRA_VERSIONS.find(v=>v.key===versionKey)?.price||10000;
+}
+
+// ═══════════════════════════════════════════════════
+// FIXTURE OFICIAL FIFA WORLD CUP 2026
+// Fuente: ESPN / FIFA — Horarios en hora ARGENTINA
+// ═══════════════════════════════════════════════════
+const FIXTURE = [
+  // FASE DE GRUPOS
+  {date:"11/06",day:"Jue",home:"México",away:"Sudáfrica",hf:"🇲🇽",af:"🇿🇦",time:"16:00",group:"A",venue:"Estadio Azteca, Ciudad de México",hs:null,as:null,status:"programado"},
+  {date:"11/06",day:"Jue",home:"Corea del Sur",away:"Rep. Checa",hf:"🇰🇷",af:"🇨🇿",time:"23:00",group:"A",venue:"Estadio Akron, Guadalajara",hs:null,as:null,status:"programado"},
+  {date:"12/06",day:"Vie",home:"Canadá",away:"Bosnia y Herz.",hf:"🇨🇦",af:"🇧🇦",time:"16:00",group:"B",venue:"BMO Field, Toronto",hs:null,as:null,status:"programado"},
+  {date:"12/06",day:"Vie",home:"Estados Unidos",away:"Paraguay",hf:"🇺🇸",af:"🇵🇾",time:"22:00",group:"D",venue:"SoFi Stadium, Los Ángeles",hs:null,as:null,status:"programado"},
+  {date:"13/06",day:"Sáb",home:"Qatar",away:"Suiza",hf:"🇶🇦",af:"🇨🇭",time:"16:00",group:"B",venue:"Levi's Stadium, San Francisco",hs:null,as:null,status:"programado"},
+  {date:"13/06",day:"Sáb",home:"Brasil",away:"Marruecos",hf:"🇧🇷",af:"🇲🇦",time:"19:00",group:"C",venue:"MetLife Stadium, Nueva Jersey",hs:null,as:null,status:"programado"},
+  {date:"13/06",day:"Sáb",home:"Haití",away:"Escocia",hf:"🇭🇹",af:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",time:"22:00",group:"C",venue:"Gillette Stadium, Boston",hs:null,as:null,status:"programado"},
+  {date:"14/06",day:"Dom",home:"Australia",away:"Turquía",hf:"🇦🇺",af:"🇹🇷",time:"01:00",group:"D",venue:"BC Place, Vancouver",hs:null,as:null,status:"programado"},
+  {date:"14/06",day:"Dom",home:"Alemania",away:"Curazao",hf:"🇩🇪",af:"🇨🇼",time:"14:00",group:"E",venue:"NRG Stadium, Houston",hs:null,as:null,status:"programado"},
+  {date:"14/06",day:"Dom",home:"Países Bajos",away:"Japón",hf:"🇳🇱",af:"🇯🇵",time:"17:00",group:"F",venue:"AT&T Stadium, Dallas",hs:null,as:null,status:"programado"},
+  {date:"14/06",day:"Dom",home:"Costa de Marfil",away:"Ecuador",hf:"🇨🇮",af:"🇪🇨",time:"20:00",group:"E",venue:"Lincoln Financial, Philadelphia",hs:null,as:null,status:"programado"},
+  {date:"14/06",day:"Dom",home:"Suecia",away:"Túnez",hf:"🇸🇪",af:"🇹🇳",time:"23:00",group:"F",venue:"Estadio BBVA, Monterrey",hs:null,as:null,status:"programado"},
+  {date:"15/06",day:"Lun",home:"España",away:"Cabo Verde",hf:"🇪🇸",af:"🇨🇻",time:"13:00",group:"H",venue:"Mercedes-Benz, Atlanta",hs:null,as:null,status:"programado"},
+  {date:"15/06",day:"Lun",home:"Bélgica",away:"Egipto",hf:"🇧🇪",af:"🇪🇬",time:"16:00",group:"G",venue:"Lumen Field, Seattle",hs:null,as:null,status:"programado"},
+  {date:"15/06",day:"Lun",home:"Arabia Saudita",away:"Uruguay",hf:"🇸🇦",af:"🇺🇾",time:"19:00",group:"H",venue:"Hard Rock Stadium, Miami",hs:null,as:null,status:"programado"},
+  {date:"15/06",day:"Lun",home:"Irán",away:"Nueva Zelanda",hf:"🇮🇷",af:"🇳🇿",time:"22:00",group:"G",venue:"Arrowhead Stadium, Kansas City",hs:null,as:null,status:"programado"},
+  {date:"16/06",day:"Mar",home:"Argentina",away:"Argelia",hf:"🇦🇷",af:"🇩🇿",time:"22:00",group:"J",venue:"Arrowhead Stadium, Kansas City",hs:null,as:null,status:"programado",highlight:true},
+  {date:"16/06",day:"Mar",home:"Senegal",away:"Corea del Sur",hf:"🇸🇳",af:"🇰🇷",time:"16:00",group:"A",venue:"Estadio Akron, Guadalajara",hs:null,as:null,status:"programado"},
+  {date:"16/06",day:"Mar",home:"Portugal",away:"Nigeria",hf:"🇵🇹",af:"🇳🇬",time:"19:00",group:"I",venue:"Lumen Field, Seattle",hs:null,as:null,status:"programado"},
+  {date:"17/06",day:"Mié",home:"Francia",away:"Malí",hf:"🇫🇷",af:"🇲🇱",time:"19:00",group:"K",venue:"Arrowhead, Kansas City",hs:null,as:null,status:"programado"},
+  {date:"17/06",day:"Mié",home:"Croacia",away:"Ghana",hf:"🇭🇷",af:"🇬🇭",time:"22:00",group:"L",venue:"Lincoln Financial, Philadelphia",hs:null,as:null,status:"programado"},
+  {date:"18/06",day:"Jue",home:"Noruega",away:"Paraguay",hf:"🇳🇴",af:"🇵🇾",time:"22:00",group:"J",venue:"AT&T Stadium, Dallas",hs:null,as:null,status:"programado"},
+  {date:"20/06",day:"Sáb",home:"Colombia",away:"Portugal",hf:"🇨🇴",af:"🇵🇹",time:"19:30",group:"K",venue:"Hard Rock Stadium, Miami",hs:null,as:null,status:"programado"},
+  {date:"22/06",day:"Lun",home:"Argentina",away:"Austria",hf:"🇦🇷",af:"🇦🇹",time:"14:00",group:"J",venue:"AT&T Stadium, Dallas",hs:null,as:null,status:"programado",highlight:true},
+  {date:"26/06",day:"Vie",home:"Argentina",away:"Jordania",hf:"🇦🇷",af:"🇯🇴",time:"22:00",group:"J",venue:"AT&T Stadium, Dallas",hs:null,as:null,status:"programado",highlight:true},
+  // FASES FINALES
+  {date:"29/06",day:"Dom",home:"1° Grupo A",away:"2° Grupo B",hf:"🏆",af:"🏆",time:"--:--",group:"R32",venue:"Por confirmar",hs:null,as:null,status:"programado"},
+  {date:"19/07",day:"Dom",home:"FINAL",away:"",hf:"🏆",af:"🏆",time:"18:00",group:"Final",venue:"MetLife Stadium, Nueva Jersey",hs:null,as:null,status:"programado"},
+];
+const WA_NUM="541123592459", IG_HANDLE="@messirve2026", WA_DISPLAY="+54 11 2359-2459", ADMIN_PW="BRUNO2018*MUNDIAL", ADMIN_USER="ADMINFA", CONTACT_EMAIL="delvallefavio2015@gmail.com", RES_MINS=20;
+const PRODE_LINK="https://elprodemundial2026.com.ar/unirse/mamonfcporde2026";
+const SITE_NAME="MESSIRVE2026";
+// Paleta Argentina — azul marino + celeste + blanco
+const B={
+  dark:"#001f5b",      // Azul marino oscuro
+  mid:"#003a8c",       // Azul AFA
+  acc:"#0050b3",       // Azul medio
+  cel:"#74c0fc",       // Celeste Argentina
+  celLight:"#e8f4fd",  // Celeste suave
+  white:"#ffffff",
+  tf:"'Bebas Neue',cursive"
+};
 const fmt=(n)=>Number(n).toLocaleString("es-AR");
 function fmtDate(ts){const d=new Date(ts);return`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;}
 function getWeek(ts){const d=new Date(ts);const s=new Date(d);s.setDate(d.getDate()-d.getDay());return`${s.getDate()}/${s.getMonth()+1}`;}
@@ -96,12 +300,22 @@ function padOrder(n){return String(n).padStart(4,"0");}
 function ChipBtn({active,onClick,children}){return<button style={{padding:"3px 10px",borderRadius:14,border:`1.5px solid ${active?B.dark:"#e2e8f0"}`,background:active?B.dark:"#fff",fontSize:11,fontWeight:600,cursor:"pointer",color:active?"#fff":"#475569",whiteSpace:"nowrap"}} onClick={onClick}>{children}</button>;}
 const inp={padding:"9px 11px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:13,color:B.dark,background:"#fff",width:"100%"};
 const lbl={fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:.5,marginBottom:5,display:"block"};
-const aBtn={background:`linear-gradient(135deg,${B.acc},#1d4ed8)`,color:"#fff",border:"none",borderRadius:25,padding:"9px 20px",fontSize:13,fontWeight:800,cursor:"pointer"};
-const bBtn={background:"none",border:"none",color:B.acc,fontSize:12,fontWeight:600,cursor:"pointer",padding:"0 0 10px",display:"block"};
+const aBtn={background:`linear-gradient(135deg,${B.dark},${B.mid})`,color:"#fff",border:"none",borderRadius:25,padding:"9px 20px",fontSize:13,fontWeight:800,cursor:"pointer"};
+const bBtn={background:"none",border:"none",color:B.dark,fontSize:12,fontWeight:600,cursor:"pointer",padding:"0 0 10px",display:"block"};
 const qBtn={width:22,height:22,borderRadius:4,border:"1px solid #e2e8f0",background:"#f8fafc",cursor:"pointer",fontSize:12,fontWeight:800};
 const tag=(bg,c)=>({fontSize:10,padding:"2px 7px",borderRadius:5,fontWeight:600,background:`#${bg}`,color:`#${c}`});
 
-function GS(){return<style>{`@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Outfit',sans-serif}input,select{font-family:'Outfit',sans-serif}.hov:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1)!important;border-color:#3b82f6!important}.hov{transition:all .18s}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}input:focus,select:focus{outline:2px solid #3b82f6;outline-offset:1px}`}</style>;}
+function GS(){return<style>{`
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Outfit',sans-serif;background:#f1f5f9}
+input,select,textarea{font-family:'Outfit',sans-serif}
+.hov:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,31,91,.15)!important;border-color:#74c0fc!important}
+.hov{transition:all .18s}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:#74c0fc55;border-radius:4px}
+input:focus,select:focus,textarea:focus{outline:2px solid #74c0fc;outline-offset:1px}
+`}</style>;}
 
 export default function App(){
   const [screen,setScreen]=useState("home");
@@ -138,7 +352,24 @@ export default function App(){
     load();const iv=setInterval(load,12000);return()=>clearInterval(iv);
   },[]);
 
-  const sv=(k,v,set)=>{set(v);window.storage.set("mw26_"+k,JSON.stringify(v),true).catch(()=>{});};
+  const sv=async(k,v,set)=>{
+    set(v);
+    try{
+      await window.storage.set("mw26_"+k,JSON.stringify(v),true);
+    }catch(e){
+      console.error("Error guardando",k,e);
+    }
+  };
+  const saveStockDirect=async(newStock)=>{
+    setStock(newStock);
+    try{
+      const r=await window.storage.set("mw26_stk",JSON.stringify(newStock),true);
+      if(!r) throw new Error("storage returned null");
+    }catch(e){
+      alert("⚠️ Error al guardar stock. Intentá de nuevo.");
+      console.error(e);
+    }
+  };
   const getP=(s)=>{if(s._isProduct)return s.price;return prices[s.key]??base[s.type]??DEFAULT_PRICES[s.type];};
   const getAvail=(key)=>{const tot=stock[key]||0,now=Date.now();const r=Object.values(res).filter(r=>r.key===key&&r.expiresAt>now&&(!user||r.userId!==user.id)).length;return Math.max(0,tot-r);};
 
@@ -174,34 +405,38 @@ export default function App(){
     const order=orders.find(o=>o.id===orderId);if(!order||order.status==="pagado")return;
     const ns={...stock};const np=[...products];
     order.items.forEach(i=>{if(i.isProduct){const pi=np.findIndex(p=>p.id===i.key);if(pi>=0)np[pi]={...np[pi],stock:Math.max(0,(np[pi].stock||0)-1)};}else{ns[i.key]=Math.max(0,(ns[i.key]||0)-1);}});
-    sv("stk",ns,setStock);sv("prods",np,setProducts);
+    await saveStockDirect(ns);sv("prods",np,setProducts);
     sv("ord",orders.map(o=>o.id===orderId?{...o,status:"pagado",paidAt:Date.now()}:o),setOrders);
   };
 
   const p={screen,setScreen,user,setUser,admin,setAdmin,stock,prices,base,
-    saveStock:(v)=>sv("stk",v,setStock),savePrices:(v)=>sv("prc",v,setPrices),saveBase:(v)=>sv("bprc",v,setBase),
+    saveStock:saveStockDirect,
+    savePrices:(v)=>sv("prc",v,setPrices),saveBase:(v)=>sv("bprc",v,setBase),
     res,cart,setCart,selC,setSelC,expiry,startRes,releaseRes,placeOrder,confirmOrder,
     users,saveUsers:(v)=>sv("usr",v,setUsers),orders,getP,getAvail,loaded,
     products,saveProducts:(v)=>sv("prods",v,setProducts),tab,setTab};
 
-  if(!loaded)return<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",background:B.dark,gap:12}}><span style={{fontSize:50}}>⚽</span><div style={{fontFamily:B.tf,fontSize:24,color:"#fff",letterSpacing:2}}>CARGANDO...</div></div>;
+  if(!loaded)return<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",background:B.dark,gap:12}}><GS/><div style={{width:56,height:56,background:B.cel,borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28}}>⚽</div><div style={{fontFamily:B.tf,fontSize:26,color:"#fff",letterSpacing:3}}>MESSI<span style={{color:B.cel}}>RVE</span>2026</div><div style={{fontSize:11,color:"rgba(255,255,255,.4)",letterSpacing:2}}>CARGANDO...</div></div>;
   if(admin)return<AdminPanel {...p}/>;
 
   return(
     <div style={{fontFamily:"'Outfit',sans-serif",background:"#f1f5f9",minHeight:"100vh",paddingBottom:80}}>
       <GS/>
       {/* TOP BAR */}
-      <header style={{background:B.dark,padding:"9px 14px",position:"sticky",top:0,zIndex:200}}>
+      <header style={{background:`linear-gradient(135deg,${B.dark},${B.mid})`,padding:"9px 14px",position:"sticky",top:0,zIndex:200,boxShadow:"0 2px 12px rgba(0,31,91,.3)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",maxWidth:960,margin:"0 auto"}}>
           <button style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:9,padding:0}} onClick={()=>setScreen("home")}>
-            <span style={{fontSize:22}}>⚽</span>
-            <div><div style={{fontFamily:B.tf,fontSize:19,color:"#fff",letterSpacing:1.5,lineHeight:1}}>FIGURITAS 2026</div><div style={{fontSize:9,color:"rgba(255,255,255,.4)"}}>Mundial FIFA · Panini</div></div>
+            <div style={{width:32,height:32,background:B.cel,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>⚽</div>
+            <div>
+              <div style={{fontFamily:B.tf,fontSize:19,color:"#fff",letterSpacing:2,lineHeight:1}}>MESSI<span style={{color:B.cel}}>RVE</span>2026</div>
+              <div style={{fontSize:9,color:"rgba(255,255,255,.4)",letterSpacing:1}}>Álbum Panini · FIFA World Cup</div>
+            </div>
           </button>
           <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
             <TimerPill expiry={expiry}/>
-            {Object.keys(cart).length>0&&<button style={{position:"relative",background:"rgba(255,255,255,.1)",color:"#fff",border:"1px solid rgba(255,255,255,.2)",borderRadius:20,padding:"5px 12px",fontSize:16,cursor:"pointer"}} onClick={()=>setScreen("cart")}>🛒<span style={{position:"absolute",top:-4,right:-4,background:"#ef4444",color:"#fff",borderRadius:10,fontSize:10,fontWeight:800,padding:"1px 5px",minWidth:17,textAlign:"center"}}>{Object.keys(cart).length}</span></button>}
-            {user?<><span style={{color:"rgba(255,255,255,.6)",fontSize:12}}>👋 {user.nombre}</span><button style={{background:"rgba(255,255,255,.1)",color:"rgba(255,255,255,.6)",border:"1px solid rgba(255,255,255,.2)",borderRadius:20,padding:"4px 10px",fontSize:11,cursor:"pointer"}} onClick={()=>{releaseRes();setCart({});setUser(null);}}>Salir</button></>:<button style={{background:B.acc,color:"#fff",border:"none",borderRadius:20,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}} onClick={()=>{setScreen("shop");setTab("figuritas");}}>Ver figuritas</button>}
-            <button style={{background:"transparent",color:"rgba(255,255,255,.4)",border:"1px solid rgba(255,255,255,.15)",borderRadius:20,padding:"4px 10px",fontSize:11,cursor:"pointer"}} onClick={()=>setAdmin(true)}>Admin</button>
+            {Object.keys(cart).length>0&&<button style={{position:"relative",background:"rgba(116,192,252,.15)",color:"#fff",border:`1px solid ${B.cel}40`,borderRadius:20,padding:"5px 12px",fontSize:16,cursor:"pointer"}} onClick={()=>setScreen("cart")}>🛒<span style={{position:"absolute",top:-4,right:-4,background:"#ef4444",color:"#fff",borderRadius:10,fontSize:10,fontWeight:800,padding:"1px 5px",minWidth:17,textAlign:"center"}}>{Object.keys(cart).length}</span></button>}
+            {user?<><span style={{color:"rgba(255,255,255,.65)",fontSize:12}}>👋 {user.nombre}</span><button style={{background:"rgba(255,255,255,.08)",color:"rgba(255,255,255,.6)",border:"1px solid rgba(255,255,255,.2)",borderRadius:20,padding:"4px 10px",fontSize:11,cursor:"pointer"}} onClick={()=>{releaseRes();setCart({});setUser(null);}}>Salir</button></>:<button style={{background:B.cel,color:B.dark,border:"none",borderRadius:20,padding:"5px 12px",fontSize:12,fontWeight:800,cursor:"pointer"}} onClick={()=>{setScreen("shop");setTab("figuritas");}}>Ver figuritas</button>}
+            <button style={{background:"transparent",color:"rgba(255,255,255,.35)",border:"1px solid rgba(255,255,255,.15)",borderRadius:20,padding:"4px 10px",fontSize:11,cursor:"pointer"}} onClick={()=>setAdmin(true)}>Admin</button>
           </div>
         </div>
       </header>
@@ -209,8 +444,8 @@ export default function App(){
       {/* NAV TABS */}
       {screen!=="home"&&screen!=="checkout"&&(
         <div style={{background:"#fff",borderBottom:"1px solid #e2e8f0",display:"flex",overflowX:"auto",scrollbarWidth:"none"}}>
-          {[["figuritas","⚽ Figuritas"],["products","🎴 Lotes"],["matches","📅 Partidos"]].map(([v,l])=>(
-            <button key={v} style={{padding:"10px 16px",border:"none",background:"transparent",fontSize:13,fontWeight:700,cursor:"pointer",color:tab===v?B.acc:"#64748b",borderBottom:tab===v?`2px solid ${B.acc}`:"2px solid transparent",whiteSpace:"nowrap"}} onClick={()=>{setTab(v);setScreen("shop");}}>
+          {[["figuritas","⚽ Figuritas"],["products","🎴 Lotes"],["extras","✨ Extras"],["buy","💰 Compramos"],["matches","📅 Partidos"]].map(([v,l])=>(
+            <button key={v} style={{padding:"10px 14px",border:"none",background:"transparent",fontSize:12,fontWeight:700,cursor:"pointer",color:tab===v?B.dark:"#64748b",borderBottom:tab===v?`2px solid ${B.dark}`:"2px solid transparent",whiteSpace:"nowrap"}} onClick={()=>{setTab(v);setScreen("shop");}}>
               {l}
             </button>
           ))}
@@ -218,7 +453,7 @@ export default function App(){
       )}
       {/* PRICE RIBBON */}
       {tab==="figuritas"&&screen!=="home"&&screen!=="checkout"&&(
-        <div style={{display:"flex",gap:5,overflowX:"auto",padding:"5px 10px",background:"#f8fafc",borderBottom:"1px solid #e2e8f0",scrollbarWidth:"none"}}>
+        <div style={{display:"flex",gap:5,overflowX:"auto",padding:"5px 10px",background:B.celLight,borderBottom:`1px solid ${B.cel}55`,scrollbarWidth:"none"}}>
           {Object.entries(PRICE_META).map(([k,v])=><div key={k} style={{display:"flex",alignItems:"center",gap:4,padding:"3px 8px",borderRadius:20,fontSize:10,fontWeight:600,whiteSpace:"nowrap",flexShrink:0,background:v.bg,color:v.color,border:`1px solid ${v.border}`}}>{v.emoji} {v.label} · <b>${fmt(base[k]||DEFAULT_PRICES[k])}</b></div>)}
         </div>
       )}
@@ -226,18 +461,143 @@ export default function App(){
       {screen==="home"    &&<HomeScreen    {...p}/>}
       {screen==="shop"    &&tab==="figuritas"&&<ShopScreen    {...p}/>}
       {screen==="shop"    &&tab==="products" &&<ProductsScreen {...p}/>}
+      {screen==="shop"    &&tab==="extras"   &&<ExtrasScreen   {...p}/>}
+      {screen==="shop"    &&tab==="buy"      &&<BuyScreen/>}
       {screen==="shop"    &&tab==="matches"  &&<MatchesScreen/>}
       {screen==="country" &&<CountryScreen  {...p}/>}
       {screen==="fwc"     &&<FWCScreen      {...p}/>}
       {screen==="cart"    &&<CartScreen     {...p}/>}
       {screen==="checkout"&&<CheckoutScreen {...p}/>}
 
-      <footer style={{background:B.dark,padding:"12px 20px",textAlign:"center",marginTop:20}}>
-        <div style={{display:"flex",justifyContent:"center",gap:18,flexWrap:"wrap"}}>
-          <a href="https://instagram.com" target="_blank" rel="noreferrer" style={{color:"#f472b6",fontWeight:700,fontSize:13,textDecoration:"none"}}>📸 {IG_HANDLE}</a>
-          <a href={`https://wa.me/${WA_NUM}`} target="_blank" rel="noreferrer" style={{color:"#4ade80",fontWeight:700,fontSize:13,textDecoration:"none"}}>💬 {WA_DISPLAY}</a>
+      <footer style={{background:`linear-gradient(135deg,${B.dark},${B.mid})`,padding:"16px 20px",textAlign:"center",marginTop:20}}>
+        <div style={{fontFamily:B.tf,fontSize:18,color:"#fff",letterSpacing:2,marginBottom:8}}>MESSI<span style={{color:B.cel}}>RVE</span>2026</div>
+        <div style={{display:"flex",justifyContent:"center",gap:16,flexWrap:"wrap",marginBottom:8}}>
+          <a href={`https://instagram.com/${IG_HANDLE.replace("@","")}`} target="_blank" rel="noreferrer" style={{color:"#f472b6",fontWeight:700,fontSize:12,textDecoration:"none"}}>📸 {IG_HANDLE}</a>
+          <a href={`https://wa.me/${WA_NUM}`} target="_blank" rel="noreferrer" style={{color:"#4ade80",fontWeight:700,fontSize:12,textDecoration:"none"}}>💬 {WA_DISPLAY}</a>
+          <a href={`mailto:${CONTACT_EMAIL}`} style={{color:B.cel,fontWeight:700,fontSize:12,textDecoration:"none"}}>📧 {CONTACT_EMAIL}</a>
         </div>
+        <a href={PRODE_LINK} target="_blank" rel="noreferrer" style={{display:"inline-block",background:B.cel,color:B.dark,borderRadius:20,padding:"7px 18px",fontSize:12,fontWeight:800,textDecoration:"none"}}>🏆 Jugá el prode con nosotros</a>
       </footer>
+    </div>
+  );
+}
+
+function ExtrasScreen({stock,saveStock}){
+  // extras stock stored as ext_ARG_gold, ext_ARG_silver, etc.
+  const getExtStock=(id,ver)=>stock[`${id}_${ver}`]||0;
+  const updExtStock=async(id,ver,val)=>{await saveStock({...stock,[`${id}_${ver}`]:Math.max(0,parseInt(val)||0)});};
+  const [filter,setFilter]=useState("todos");
+  const fil=filter==="todos"?EXTRA_PLAYERS:EXTRA_PLAYERS.filter(p=>p.code===filter);
+
+  return(
+    <div style={{maxWidth:960,margin:"0 auto",padding:14}}>
+      {/* Header */}
+      <div style={{background:"linear-gradient(135deg,#6d28d9,#9333ea)",borderRadius:14,padding:"16px 18px",marginBottom:16,color:"#fff"}}>
+        <h1 style={{fontFamily:B.tf,fontSize:26,letterSpacing:1,marginBottom:4}}>✨ EXTRAS PANINI 2026</h1>
+        <p style={{fontSize:13,opacity:.85,lineHeight:1.5}}>20 jugadores · 4 versiones cada uno · Aparecen 1 cada 100 sobres aprox.<br/>No van en el álbum — son coleccionables ultra raros.</p>
+        <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
+          {EXTRA_VERSIONS.map(v=>(
+            <div key={v.key} style={{background:"rgba(255,255,255,.15)",borderRadius:8,padding:"4px 10px",fontSize:11,fontWeight:700}}>
+              {v.label} <span style={{opacity:.7}}>— {v.rarity}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tabla de stock */}
+      <div style={{background:"#fff",borderRadius:12,border:"1px solid #e2e8f0",overflow:"hidden"}}>
+        <div style={{padding:"10px 14px",borderBottom:"1px solid #f1f5f9",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+          <h3 style={{fontSize:14,fontWeight:700,color:B.dark}}>Disponibles en stock</h3>
+          <div style={{fontSize:12,color:"#64748b"}}>Stock editable desde el panel Admin</div>
+        </div>
+
+        {/* Header tabla */}
+        <div style={{display:"grid",gridTemplateColumns:"2fr 1.5fr 1fr 1fr 1fr 1fr",padding:"7px 14px",background:B.dark,color:"#fff",fontSize:11,fontWeight:700,gap:8}}>
+          <span>Jugador</span><span>País</span>
+          {EXTRA_VERSIONS.map(v=><span key={v.key} style={{textAlign:"center"}}>{v.label.split(" ")[0]}</span>)}
+        </div>
+
+        {EXTRA_PLAYERS.map(p=>(
+          <div key={p.id} style={{display:"grid",gridTemplateColumns:"2fr 1.5fr 1fr 1fr 1fr 1fr",padding:"8px 14px",borderBottom:"1px solid #f8fafc",alignItems:"center",gap:8}}>
+            <div style={{fontWeight:700,fontSize:13,color:B.dark}}>{p.player}</div>
+            <div style={{display:"flex",alignItems:"center",gap:5,fontSize:12,color:"#475569"}}><span style={{fontSize:16}}>{p.flag}</span>{p.country}</div>
+            {EXTRA_VERSIONS.map(v=>{
+              const qty=getExtStock(p.id,v.key);
+              return(
+                <div key={v.key} style={{textAlign:"center"}}>
+                  <div style={{fontSize:13,fontWeight:800,color:qty>0?v.color:"#94a3b8"}}>{qty>0?qty:"—"}</div>
+                  {qty>0&&<div style={{fontSize:9,padding:"1px 5px",borderRadius:4,background:v.bg,color:v.color,fontWeight:700,display:"inline-block"}}>{v.label}</div>}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* CTA contacto */}
+      <div style={{background:"linear-gradient(135deg,#6d28d9,#9333ea)",borderRadius:12,padding:16,marginTop:14,color:"#fff",textAlign:"center"}}>
+        <div style={{fontSize:18,marginBottom:6}}>✨</div>
+        <div style={{fontWeight:800,fontSize:15,marginBottom:4}}>¿Buscás un Extra específico?</div>
+        <p style={{fontSize:13,opacity:.8,marginBottom:12}}>Consultanos por WhatsApp o email — te avisamos si conseguimos el que necesitás</p>
+        <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+          <a href={`https://wa.me/${WA_NUM}?text=${encodeURIComponent("Hola! Estoy buscando una figurita EXTRA de Panini 2026.")}`} target="_blank" rel="noreferrer"
+            style={{background:"#25d366",color:"#fff",borderRadius:20,padding:"8px 18px",fontSize:13,fontWeight:700,textDecoration:"none"}}>
+            💬 Consultar por WhatsApp
+          </a>
+          <a href={`mailto:${CONTACT_EMAIL}?subject=Consulta Extra Sticker Panini 2026`}
+            style={{background:"rgba(255,255,255,.2)",color:"#fff",borderRadius:20,padding:"8px 18px",fontSize:13,fontWeight:700,textDecoration:"none"}}>
+            📧 Enviar email
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BuyScreen(){
+  const [nombre,setNombre]=useState("");
+  const [tel,setTel]=useState("");
+  const [desc,setDesc]=useState("");
+
+  const waMsg=encodeURIComponent(`*🎴 Quiero vender figuritas - MESSIRVE2026*\n\nNombre: ${nombre}\nTeléfono: ${tel}\n\nDetalle del lote:\n${desc}`);
+
+  return(
+    <div style={{maxWidth:700,margin:"0 auto",padding:14}}>
+      <div style={{background:"linear-gradient(135deg,#065f46,#047857)",borderRadius:14,padding:"18px 18px",marginBottom:16,color:"#fff"}}>
+        <h1 style={{fontFamily:B.tf,fontSize:26,letterSpacing:1,marginBottom:6}}>💰 COMPRAMOS TUS FIGURITAS</h1>
+        <p style={{fontSize:13,opacity:.85,lineHeight:1.6}}>¿Tenés figuritas repetidas o lotes para vender?<br/>Compramos lotes completos de repetidas, escudos, estrellas y más.<br/>Contactanos y te hacemos una oferta en el momento.</p>
+      </div>
+      <div style={{background:"#fff",borderRadius:12,border:"1px solid #e2e8f0",padding:16,marginBottom:14}}>
+        <h3 style={{fontSize:14,fontWeight:700,color:B.dark,marginBottom:12}}>✅ ¿Qué compramos?</h3>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:8}}>
+          {[["🌟","FWC especiales","Logo Panini, estadios"],["⭐","Jugadores estrella","Messi, Ronaldo, Mbappé..."],["🛡️","Escudos FOIL","Cualquier selección"],["✨","Extras Panini","Base, Bronce, Plata, Oro"],["🎴","Lotes repetidas","Cualquier cantidad"],["📦","Sobres sin abrir","Originales cerrados"]].map(([e,t,d])=>(
+            <div key={t} style={{background:"#f8fafc",borderRadius:9,padding:"10px 12px",border:"1px solid #e2e8f0"}}>
+              <div style={{fontSize:18,marginBottom:3}}>{e}</div>
+              <div style={{fontWeight:700,fontSize:12,color:B.dark}}>{t}</div>
+              <div style={{fontSize:11,color:"#64748b"}}>{d}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{background:"#fff",borderRadius:12,border:"1px solid #e2e8f0",padding:16,marginBottom:14}}>
+        <h3 style={{fontSize:14,fontWeight:700,color:B.dark,marginBottom:12}}>📋 Contanos qué tenés</h3>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div><label style={{fontSize:12,fontWeight:600,color:"#374151"}}>Tu nombre</label><input style={{...inp,marginTop:3}} placeholder="Juan Pérez" value={nombre} onChange={e=>setNombre(e.target.value)}/></div>
+          <div><label style={{fontSize:12,fontWeight:600,color:"#374151"}}>WhatsApp / Teléfono</label><input style={{...inp,marginTop:3}} placeholder="1123456789" value={tel} onChange={e=>setTel(e.target.value)}/></div>
+          <div><label style={{fontSize:12,fontWeight:600,color:"#374151"}}>Describí lo que tenés</label><textarea style={{...inp,marginTop:3,height:90,resize:"vertical"}} placeholder="Ej: 200 figuritas repetidas de Argentina, un Extra Messi Bronce..." value={desc} onChange={e=>setDesc(e.target.value)}/></div>
+        </div>
+        <div style={{display:"flex",gap:10,marginTop:14,flexWrap:"wrap"}}>
+          <a href={`https://wa.me/${WA_NUM}?text=${waMsg}`} target="_blank" rel="noreferrer" style={{flex:1,display:"block",textAlign:"center",background:"linear-gradient(135deg,#25d366,#128c7e)",color:"#fff",borderRadius:20,padding:"11px 14px",fontSize:13,fontWeight:800,textDecoration:"none"}}>📲 Enviar por WhatsApp</a>
+          <a href={`mailto:${CONTACT_EMAIL}?subject=Quiero vender figuritas&body=${encodeURIComponent(`Nombre: ${nombre}\nTel: ${tel}\n\n${desc}`)}`} style={{flex:1,display:"block",textAlign:"center",background:`linear-gradient(135deg,${B.acc},#1d4ed8)`,color:"#fff",borderRadius:20,padding:"11px 14px",fontSize:13,fontWeight:800,textDecoration:"none"}}>📧 Enviar por Email</a>
+        </div>
+      </div>
+      <div style={{background:"#f8fafc",borderRadius:12,padding:14,border:"1px solid #e2e8f0",textAlign:"center"}}>
+        <div style={{fontSize:12,color:"#64748b",marginBottom:8}}>O contactanos directamente</div>
+        <div style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap"}}>
+          <a href={`https://wa.me/${WA_NUM}`} target="_blank" rel="noreferrer" style={{color:"#25d366",fontWeight:700,fontSize:13,textDecoration:"none"}}>💬 {WA_DISPLAY}</a>
+          <a href={`mailto:${CONTACT_EMAIL}`} style={{color:B.acc,fontWeight:700,fontSize:13,textDecoration:"none"}}>📧 {CONTACT_EMAIL}</a>
+        </div>
+      </div>
     </div>
   );
 }
@@ -246,19 +606,30 @@ function TimerPill({expiry}){const[t,setT]=useState("");useEffect(()=>{if(!expir
 
 function HomeScreen({setScreen,setTab}){
   return(
-    <div style={{minHeight:"calc(100vh - 60px)",background:`linear-gradient(160deg,${B.dark},${B.mid},#0c4a6e)`,display:"flex",alignItems:"center",justifyContent:"center"}}>
-      <div style={{textAlign:"center",padding:"40px 20px",maxWidth:540}}>
-        <div style={{fontSize:64}}>🏆</div>
-        <h1 style={{fontFamily:B.tf,fontSize:50,color:"#fff",lineHeight:1,letterSpacing:2,margin:"10px 0 14px"}}>FIGURITAS<br/>MUNDIAL 2026</h1>
-        <p style={{color:"rgba(255,255,255,.65)",fontSize:14,lineHeight:1.7,marginBottom:26}}>980 figuritas · 48 selecciones · Álbum Panini oficial<br/>Lotes armados, sobres y álbumes completos</p>
-        <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap",marginBottom:16}}>
-          <button style={{...aBtn,padding:"13px 26px",fontSize:15,borderRadius:28}} onClick={()=>{setScreen("shop");setTab("figuritas");}}>⚽ Ver figuritas</button>
-          <button style={{background:"linear-gradient(135deg,#d97706,#b45309)",color:"#fff",border:"none",borderRadius:28,padding:"13px 26px",fontSize:15,fontWeight:800,cursor:"pointer"}} onClick={()=>{setScreen("shop");setTab("products");}}>🎴 Lotes & Sobres</button>
+    <div style={{minHeight:"calc(100vh - 60px)",background:`linear-gradient(160deg,${B.dark} 0%,${B.mid} 55%,${B.acc} 100%)`,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden"}}>
+      {/* Rayas albiceleste */}
+      <div style={{position:"absolute",inset:0,background:"repeating-linear-gradient(90deg,transparent 0,transparent 22px,rgba(255,255,255,.03) 22px,rgba(255,255,255,.03) 44px)",pointerEvents:"none"}}/>
+      <div style={{textAlign:"center",padding:"40px 20px",maxWidth:540,position:"relative"}}>
+        {/* Logo */}
+        <div style={{width:72,height:72,background:B.cel,borderRadius:18,display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,margin:"0 auto 16px"}}>⚽</div>
+        <h1 style={{fontFamily:B.tf,fontSize:52,color:"#fff",lineHeight:1,letterSpacing:3,margin:"0 0 6px"}}>MESSI<span style={{color:B.cel}}>RVE</span>2026</h1>
+        <p style={{color:"rgba(255,255,255,.5)",fontSize:12,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>Álbum Panini · FIFA World Cup</p>
+        <p style={{color:"rgba(255,255,255,.65)",fontSize:14,lineHeight:1.7,marginBottom:24}}>980 figuritas · 48 selecciones · Álbum Panini oficial<br/>Lotes armados, sobres y álbumes completos</p>
+        {/* Botones principales */}
+        <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap",marginBottom:10}}>
+          <button style={{background:"#fff",color:B.dark,border:"none",borderRadius:28,padding:"13px 26px",fontSize:14,fontWeight:800,cursor:"pointer"}} onClick={()=>{setScreen("shop");setTab("figuritas");}}>⚽ Ver figuritas</button>
+          <button style={{background:`rgba(116,192,252,.18)`,color:"#fff",border:`1px solid ${B.cel}`,borderRadius:28,padding:"13px 26px",fontSize:14,fontWeight:700,cursor:"pointer"}} onClick={()=>{setScreen("shop");setTab("products");}}>🎴 Lotes & Sobres</button>
         </div>
-        <button style={{background:"rgba(255,255,255,.08)",color:"rgba(255,255,255,.7)",border:"1px solid rgba(255,255,255,.2)",borderRadius:28,padding:"9px 22px",fontSize:13,fontWeight:600,cursor:"pointer"}} onClick={()=>{setScreen("shop");setTab("matches");}}>📅 Ver partidos del Mundial</button>
-        <div style={{marginTop:20,display:"flex",justifyContent:"center",gap:18}}>
-          <a href="https://instagram.com" target="_blank" rel="noreferrer" style={{color:"#f472b6",fontWeight:700,fontSize:13,textDecoration:"none"}}>📸 {IG_HANDLE}</a>
-          <a href={`https://wa.me/${WA_NUM}`} target="_blank" rel="noreferrer" style={{color:"#4ade80",fontWeight:700,fontSize:13,textDecoration:"none"}}>💬 {WA_DISPLAY}</a>
+        {/* Extras */}
+        <button style={{background:"rgba(255,255,255,.08)",color:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.2)",borderRadius:28,padding:"9px 20px",fontSize:13,fontWeight:600,cursor:"pointer",marginBottom:8,display:"block",width:"100%",maxWidth:280,margin:"0 auto 8px"}} onClick={()=>{setScreen("shop");setTab("extras");}}>✨ Ver Extras Panini 2026</button>
+        {/* Prode */}
+        <a href={PRODE_LINK} target="_blank" rel="noreferrer" style={{display:"block",background:`linear-gradient(135deg,${B.cel},#4dabf7)`,color:B.dark,borderRadius:28,padding:"11px 20px",fontSize:13,fontWeight:800,textDecoration:"none",marginBottom:16,maxWidth:280,margin:"0 auto 16px"}}>🏆 Jugá el prode con nosotros</a>
+        {/* Partidos */}
+        <button style={{background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.5)",border:"1px solid rgba(255,255,255,.15)",borderRadius:28,padding:"7px 18px",fontSize:12,cursor:"pointer",marginBottom:20}} onClick={()=>{setScreen("shop");setTab("matches");}}>📅 Ver partidos del Mundial</button>
+        {/* Redes */}
+        <div style={{display:"flex",justifyContent:"center",gap:16,flexWrap:"wrap"}}>
+          <a href={`https://instagram.com/${IG_HANDLE.replace("@","")}`} target="_blank" rel="noreferrer" style={{color:"#f472b6",fontWeight:700,fontSize:12,textDecoration:"none"}}>📸 {IG_HANDLE}</a>
+          <a href={`https://wa.me/${WA_NUM}`} target="_blank" rel="noreferrer" style={{color:"#4ade80",fontWeight:700,fontSize:12,textDecoration:"none"}}>💬 {WA_DISPLAY}</a>
         </div>
       </div>
     </div>
@@ -330,82 +701,104 @@ function ProductsScreen({cart,setCart,getP,products}){
 }
 
 function MatchesScreen(){
-  const [matches,setMatches]=useState(null);
-  const [loading,setLoading]=useState(true);
-  const [err,setErr]=useState(false);
-  useEffect(()=>{
-    async function go(){
-      try{
-        const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1500,tools:[{type:"web_search_20250305",name:"web_search"}],messages:[{role:"user",content:"Busca resultados y próximos partidos del Mundial FIFA 2026. Devuelve SOLO un JSON array sin markdown, máximo 20 partidos. Cada objeto: homeTeam, awayTeam, homeFlag (emoji bandera), awayFlag (emoji bandera), homeScore (número o null), awayScore (número o null), date (DD/MM), time (hora Argentina), status ('finalizado'|'en vivo'|'programado'), stage. Si el mundial no empezó aún, usa el fixture oficial FIFA 2026."}]})});
-        const data=await r.json();
-        const text=data.content?.filter(c=>c.type==="text").map(c=>c.text).join("");
-        const clean=text.replace(/```json|```/g,"").trim();
-        const s=clean.indexOf("["),e=clean.lastIndexOf("]");
-        if(s>=0&&e>s){setMatches(JSON.parse(clean.slice(s,e+1)));}else setErr(true);
-      }catch{setErr(true);}
-      setLoading(false);
-    }
-    go();
-  },[]);
-  const sc={finalizado:{bg:"#f1f5f9",c:"#475569"},programado:{bg:"#dbeafe",c:"#1e40af"},"en vivo":{bg:"#d1fae5",c:"#065f46"}};
+  const [filtro,setFiltro]=useState("todos");
+  const fil=useMemo(()=>{
+    if(filtro==="argentina")return FIXTURE.filter(m=>m.hf==="🇦🇷"||m.af==="🇦🇷");
+    if(filtro==="grupos")return FIXTURE.filter(m=>m.group!=="R32"&&m.group!=="Final");
+    if(filtro==="final")return FIXTURE.filter(m=>m.group==="Final"||m.group==="R32");
+    return FIXTURE;
+  },[filtro]);
+  const sc={finalizado:{bg:"#d1fae5",c:"#065f46"},programado:{bg:B.celLight,c:B.dark},"en vivo":{bg:"#fee2e2",c:"#991b1b"}};
   return(
     <div style={{maxWidth:960,margin:"0 auto",padding:14}}>
-      <h1 style={{fontFamily:B.tf,fontSize:26,color:B.dark,marginBottom:4,letterSpacing:1}}>📅 FIFA World Cup 2026</h1>
-      <p style={{color:"#64748b",fontSize:13,marginBottom:14}}>Partidos y resultados — actualización en tiempo real</p>
-      {loading&&<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:40}}>⚽</div><div style={{color:"#64748b",fontSize:14,marginTop:10}}>Cargando partidos...</div></div>}
-      {err&&!loading&&(
-        <div style={{background:"#fef3c7",borderRadius:12,padding:16,border:"1px solid #fbbf24",textAlign:"center"}}>
-          <div style={{fontSize:26,marginBottom:8}}>📅</div>
-          <div style={{fontWeight:700,color:"#92400e",marginBottom:6}}>Fixture no disponible en este momento</div>
-          <div style={{fontSize:12,color:"#92400e",marginBottom:10}}>El Mundial FIFA 2026 comienza el 11 de junio de 2026</div>
-          <div style={{background:"#fff",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#64748b",textAlign:"left",display:"inline-block"}}>
-            <b>Fase de Grupos:</b> 11 jun – 3 jul · <b>Octavos:</b> 6–10 jul<br/>
-            <b>Cuartos:</b> 13–14 jul · <b>Semis:</b> 17–18 jul<br/>
-            <b>Final:</b> 19 jul 2026 · MetLife Stadium, NJ
-          </div>
+      <div style={{background:`linear-gradient(135deg,${B.dark},${B.mid})`,borderRadius:14,padding:"14px 16px",marginBottom:14,color:"#fff"}}>
+        <h1 style={{fontFamily:B.tf,fontSize:26,letterSpacing:1,marginBottom:3}}>📅 FIFA WORLD CUP 2026</h1>
+        <p style={{fontSize:12,opacity:.7}}>11 jun – 19 jul · EE.UU., México y Canadá · 104 partidos · 48 selecciones</p>
+        <div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap"}}>
+          {[["todos","Todos"],["argentina","🇦🇷 Argentina"],["grupos","Fase de Grupos"],["final","Fases Finales"]].map(([v,l])=>(
+            <button key={v} style={{padding:"4px 12px",borderRadius:20,border:`1px solid ${filtro===v?"#fff":B.cel+"66"}`,background:filtro===v?"#fff":"transparent",color:filtro===v?B.dark:"rgba(255,255,255,.7)",fontSize:11,fontWeight:700,cursor:"pointer"}} onClick={()=>setFiltro(v)}>{l}</button>
+          ))}
         </div>
-      )}
-      {matches&&!loading&&(
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {matches.map((m,i)=>{const s=sc[m.status]||sc.programado;const hr=m.homeScore!==null&&m.awayScore!==null;return(
-            <div key={i} style={{background:"#fff",borderRadius:12,padding:"12px 16px",border:"1px solid #e2e8f0",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:200,justifyContent:"center"}}>
-                <span style={{fontSize:24}}>{m.homeFlag||"🏳️"}</span>
-                <div style={{textAlign:"right",flex:1}}><div style={{fontWeight:800,fontSize:13,color:B.dark}}>{m.homeTeam}</div></div>
-                <div style={{fontFamily:B.tf,fontSize:22,color:B.dark,margin:"0 8px",minWidth:60,textAlign:"center"}}>{hr?`${m.homeScore} – ${m.awayScore}`:"vs"}</div>
-                <div style={{textAlign:"left",flex:1}}><div style={{fontWeight:800,fontSize:13,color:B.dark}}>{m.awayTeam}</div></div>
-                <span style={{fontSize:24}}>{m.awayFlag||"🏳️"}</span>
+      </div>
+      {/* Info Argentina destacada */}
+      <div style={{background:B.celLight,borderRadius:12,padding:"12px 14px",marginBottom:14,border:`1px solid ${B.cel}`}}>
+        <div style={{fontWeight:800,fontSize:13,color:B.dark,marginBottom:6}}>🇦🇷 Argentina — Grupo J</div>
+        <div style={{display:"flex",flexDirection:"column",gap:4}}>
+          <div style={{fontSize:12,color:B.dark}}>📅 <b>16/06 22:00</b> vs Argelia — Arrowhead Stadium, Kansas City</div>
+          <div style={{fontSize:12,color:B.dark}}>📅 <b>22/06 14:00</b> vs Austria — AT&T Stadium, Dallas</div>
+          <div style={{fontSize:12,color:B.dark}}>📅 <b>26/06 22:00</b> vs Jordania — AT&T Stadium, Dallas</div>
+        </div>
+      </div>
+      {/* Lista de partidos */}
+      <div style={{display:"flex",flexDirection:"column",gap:7}}>
+        {fil.map((m,i)=>{
+          const s=sc[m.status]||sc.programado;
+          const hr=m.hs!==null&&m.as!==null;
+          const isArg=m.hf==="🇦🇷"||m.af==="🇦🇷";
+          return(
+            <div key={i} style={{background:"#fff",borderRadius:12,border:`${isArg?2:1}px solid ${isArg?B.cel:"#e2e8f0"}`,padding:"10px 14px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",background:isArg?B.celLight:"#fff"}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,flex:1,minWidth:180,justifyContent:"center"}}>
+                <span style={{fontSize:22}}>{m.hf}</span>
+                <div style={{textAlign:"right",flex:1}}><div style={{fontWeight:800,fontSize:12,color:B.dark}}>{m.home}</div></div>
+                <div style={{fontFamily:B.tf,fontSize:20,color:B.dark,margin:"0 6px",minWidth:50,textAlign:"center"}}>{hr?`${m.hs}–${m.as}`:"vs"}</div>
+                <div style={{textAlign:"left",flex:1}}><div style={{fontWeight:800,fontSize:12,color:B.dark}}>{m.away}</div></div>
+                <span style={{fontSize:22}}>{m.af}</span>
               </div>
-              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3,minWidth:100}}>
-                <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:7,background:s.bg,color:s.c}}>{m.status?.toUpperCase()}</span>
-                <div style={{fontSize:11,color:"#64748b"}}>{m.date}{m.time&&` · ${m.time}`}</div>
-                {m.stage&&<div style={{fontSize:10,color:"#94a3b8"}}>{m.stage}</div>}
+              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3,minWidth:130}}>
+                <span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:7,background:s.bg,color:s.c,border:`1px solid ${isArg?B.cel:"#e2e8f0"}`}}>{m.status==="programado"?"PROGRAMADO":m.status==="en vivo"?"🔴 EN VIVO":"FINALIZADO"}</span>
+                <div style={{fontSize:11,color:B.dark,fontWeight:600}}>{m.day} {m.date} · {m.time} ARG</div>
+                <div style={{fontSize:10,color:"#64748b"}}>Grupo {m.group}</div>
+                <div style={{fontSize:9,color:"#94a3b8",textAlign:"right"}}>{m.venue}</div>
               </div>
             </div>
-          );})}
-        </div>
-      )}
+          );
+        })}
+      </div>
+      {/* Link prode */}
+      <div style={{background:`linear-gradient(135deg,${B.dark},${B.mid})`,borderRadius:12,padding:14,marginTop:14,textAlign:"center",color:"#fff"}}>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:8}}>🏆 ¿Querés predecir los resultados?</div>
+        <a href={PRODE_LINK} target="_blank" rel="noreferrer" style={{display:"inline-block",background:B.cel,color:B.dark,borderRadius:20,padding:"9px 20px",fontSize:13,fontWeight:800,textDecoration:"none"}}>Jugá el prode con nosotros</a>
+      </div>
     </div>
   );
 }
 
-function StickerCard({s,flag,av,sel,pr,onToggle,m}){
+function StickerCard({s,flag,av,sel,qty,pr,onToggle,onRemove,m}){
+  const img=getStickerImage(s.key);
+  const [imgOk,setImgOk]=useState(true);
+  const noStock=av===0&&!sel;
   return(
-    <button onClick={()=>{if(av>0||sel)onToggle(s);}} style={{background:sel?"#eff6ff":"#fff",border:`2px solid ${sel?B.acc:av>0?m.border:"#e2e8f0"}`,borderRadius:12,padding:7,cursor:av>0||sel?"pointer":"not-allowed",textAlign:"left",position:"relative",opacity:av===0&&!sel?.5:1,transition:"all .15s"}}>
-      <div style={{width:"100%",aspectRatio:"3/4",background:`linear-gradient(145deg,${m.bg},white)`,border:`1.5px solid ${m.border}`,borderRadius:7,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",marginBottom:5}}>
-        <div style={{fontSize:22,marginBottom:2}}>{flag}</div>
-        <div style={{fontSize:10,fontWeight:800,color:m.color}}>{s.num}</div>
-        <div style={{fontSize:8,color:m.color,textAlign:"center",padding:"0 3px",fontWeight:600,lineHeight:1.2}}>{s.name}</div>
+    <div style={{background:sel?B.celLight:"#fff",border:`2px solid ${sel?B.dark:av>0?m.border:"#e2e8f0"}`,borderRadius:12,padding:6,position:"relative",transition:"all .15s",opacity:noStock?.6:1}}>
+      <div style={{width:"100%",aspectRatio:"3/4",borderRadius:7,overflow:"hidden",marginBottom:4,position:"relative",background:`linear-gradient(145deg,${m.bg},#fff)`,border:`1px solid ${m.border}`,cursor:"pointer"}} onClick={()=>onToggle(s)}>
+        {imgOk
+          ? <img src={img} alt={s.name} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center top",display:"block"}} onError={()=>setImgOk(false)}/>
+          : <div style={{width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3}}>
+              <span style={{fontSize:20}}>{flag}</span>
+              <span style={{fontSize:10,fontWeight:800,color:m.color}}>{s.num}</span>
+              <span style={{fontSize:8,color:m.color,textAlign:"center",padding:"0 4px",fontWeight:600,lineHeight:1.2}}>{s.name}</span>
+            </div>
+        }
+        {noStock&&<div style={{position:"absolute",inset:0,background:"rgba(255,255,255,.55)",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:11,fontWeight:800,color:"#ef4444",background:"#fff",borderRadius:6,padding:"2px 6px"}}>Sin stock</span></div>}
+        {qty>0&&<div style={{position:"absolute",top:4,right:4,background:B.dark,color:"#fff",minWidth:20,height:20,borderRadius:10,fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px"}}>{qty}</div>}
+        <div style={{position:"absolute",bottom:3,left:3,fontSize:8,fontWeight:700,padding:"1px 5px",borderRadius:4,background:m.bg+"ee",color:m.color}}>{m.emoji} {m.label}</div>
       </div>
-      <div style={{fontSize:9,fontWeight:700,padding:"2px 5px",borderRadius:4,display:"inline-block",marginBottom:3,background:m.bg,color:m.color}}>{m.emoji} {m.label}</div>
-      <div style={{fontSize:12,fontWeight:800,color:B.dark,marginBottom:1}}>{s.num}</div>
-      <div style={{fontSize:9,color:"#475569",lineHeight:1.3,minHeight:20,marginBottom:4}}>{s.name}</div>
+      <div style={{fontSize:11,fontWeight:800,color:B.dark,lineHeight:1.2,marginBottom:1}}>{s.num}</div>
+      <div style={{fontSize:9,color:"#475569",lineHeight:1.2,marginBottom:3,minHeight:16}}>{s.name}</div>
+      {sel
+        ? <div style={{display:"flex",alignItems:"center",gap:3,marginBottom:3}}>
+            <button style={{flex:1,height:22,borderRadius:5,border:"1px solid #fee2e2",background:"#fee2e2",color:"#ef4444",fontWeight:800,fontSize:14,cursor:"pointer"}} onClick={()=>onRemove&&onRemove(s)}>−</button>
+            <span style={{flex:1,textAlign:"center",fontWeight:800,fontSize:13,color:B.dark}}>{qty}</span>
+            <button style={{flex:1,height:22,borderRadius:5,border:"1px solid #d1fae5",background:"#d1fae5",color:"#065f46",fontWeight:800,fontSize:14,cursor:"pointer"}} onClick={()=>onToggle(s)}>+</button>
+          </div>
+        : <button style={{width:"100%",padding:"4px 0",borderRadius:6,border:`1px solid ${m.border}`,background:av>0?m.bg:"#f1f5f9",color:av>0?m.color:"#94a3b8",fontSize:10,fontWeight:700,cursor:av>0?"pointer":"default",marginBottom:3}} onClick={()=>av>0&&onToggle(s)}>
+            {av>0?"+ Agregar":"Sin stock"}
+          </button>
+      }
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <span style={{fontSize:9,fontWeight:700,padding:"2px 5px",borderRadius:4,background:av>0?"#d1fae5":"#fee2e2",color:av>0?"#065f46":"#991b1b"}}>{av>0?`📦${av}`:"❌"}</span>
-        <span style={{fontWeight:800,color:m.color,fontSize:12}}>${fmt(pr)}</span>
+        <span style={{fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:4,background:av>0?"#d1fae5":sel?"#fef9c3":"#fee2e2",color:av>0?"#065f46":sel?"#92400e":"#991b1b"}}>{av>0?`📦 ${av}`:sel?"en carrito":"❌"}</span>
+        <span style={{fontWeight:800,color:m.color,fontSize:11}}>${fmt(pr)}</span>
       </div>
-      {sel&&<div style={{position:"absolute",top:5,right:5,background:B.acc,color:"#fff",width:18,height:18,borderRadius:9,fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>✓</div>}
-    </button>
+    </div>
   );
 }
 
@@ -424,9 +817,19 @@ function CountryScreen({selC:country,setScreen,cart,setCart,getP,getAvail,expiry
   const [fil,setFil]=useState("todas");
   const ss=useMemo(()=>buildCountryStickers(country),[country]);
   const fd=useMemo(()=>{if(fil==="stock")return ss.filter(s=>getAvail(s.key)>0);if(fil==="top")return ss.filter(s=>s.type==="TOP"||s.type==="FOIL");if(fil==="carrito")return ss.filter(s=>cart[s.key]);return ss;},[ss,fil,cart,getAvail]);
-  const cC=ss.filter(s=>cart[s.key]),cT=cC.reduce((a,s)=>a+getP(s),0);
-  const aC=Object.keys(cart).length,aT=Object.values(cart).reduce((a,s)=>a+getP(s),0);
-  const tog=(s)=>setCart(p=>{const n={...p};if(n[s.key])delete n[s.key];else n[s.key]=s;return n;});
+  const cC=ss.filter(s=>cart[s.key]),cT=cC.reduce((a,s)=>a+(getP(s)*(cart[s.key]?._qty||1)),0);
+  const aC=Object.values(cart).reduce((a,s)=>a+(s._qty||1),0),aT=Object.values(cart).reduce((a,s)=>a+(getP(s)*(s._qty||1)),0);
+  const tog=(s)=>setCart(p=>{
+    const n={...p};
+    if(n[s.key]){const q=n[s.key]._qty||1;const av=getAvail(s.key);if(q<av||av===0)n[s.key]={...s,_qty:q+1};}
+    else n[s.key]={...s,_qty:1};
+    return n;
+  });
+  const togRemove=(s)=>setCart(p=>{
+    const n={...p};
+    if(n[s.key]){const q=n[s.key]._qty||1;if(q<=1)delete n[s.key];else n[s.key]={...s,_qty:q-1};}
+    return n;
+  });
   return(
     <div style={{maxWidth:960,margin:"0 auto",padding:14}}>
       <button style={bBtn} onClick={()=>setScreen("shop")}>← Volver a países</button>
@@ -446,7 +849,7 @@ function CountryScreen({selC:country,setScreen,cart,setCart,getP,getAvail,expiry
         {[["todas","Todas"],["stock","Con stock"],["top","TOP/FOIL"],["carrito","En carrito"]].map(([v,l])=><ChipBtn key={v} active={fil===v} onClick={()=>setFil(v)}>{l}</ChipBtn>)}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(128px,1fr))",gap:6}}>
-        {fd.map(s=><StickerCard key={s.key} s={s} flag={country.flag} av={getAvail(s.key)} sel={!!cart[s.key]} pr={getP(s)} onToggle={tog} m={PRICE_META[s.type]}/>)}
+        {fd.map(s=><StickerCard key={s.key} s={s} flag={country.flag} av={getAvail(s.key)} sel={!!cart[s.key]} qty={cart[s.key]?._qty||0} pr={getP(s)} onToggle={tog} onRemove={togRemove} m={PRICE_META[s.type]}/>)}
       </div>
       {aC>0&&<StickyCart count={aC} total={aT} onClick={()=>setScreen("cart")}/>}
     </div>
@@ -454,14 +857,24 @@ function CountryScreen({selC:country,setScreen,cart,setCart,getP,getAvail,expiry
 }
 
 function FWCScreen({setScreen,cart,setCart,getP,getAvail}){
-  const aC=Object.keys(cart).length,aT=Object.values(cart).reduce((a,s)=>a+getP(s),0);
-  const tog=(s)=>setCart(p=>{const n={...p};if(n[s.key])delete n[s.key];else n[s.key]=s;return n;});
+  const aC=Object.values(cart).reduce((a,s)=>a+(s._qty||1),0),aT=Object.values(cart).reduce((a,s)=>a+(getP(s)*(s._qty||1)),0);
+  const tog=(s)=>setCart(p=>{
+    const n={...p};
+    if(n[s.key]){const q=n[s.key]._qty||1;const av=getAvail(s.key);if(q<av||av===0)n[s.key]={...s,_qty:q+1};}
+    else n[s.key]={...s,_qty:1};
+    return n;
+  });
+  const togRemove=(s)=>setCart(p=>{
+    const n={...p};
+    if(n[s.key]){const q=n[s.key]._qty||1;if(q<=1)delete n[s.key];else n[s.key]={...s,_qty:q-1};}
+    return n;
+  });
   return(
     <div style={{maxWidth:960,margin:"0 auto",padding:14}}>
       <button style={bBtn} onClick={()=>setScreen("shop")}>← Volver a países</button>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}><span style={{fontSize:44}}>🌟</span><div><h1 style={{fontFamily:B.tf,fontSize:26,color:B.dark,letterSpacing:1}}>Especiales FWC</h1><div style={{fontSize:12,color:"#64748b"}}>FOIL metálico · Precios especiales</div></div></div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(128px,1fr))",gap:6}}>
-        {FWC_STICKERS.map(s=><StickerCard key={s.key} s={s} flag="🌟" av={getAvail(s.key)} sel={!!cart[s.key]} pr={getP(s)} onToggle={tog} m={PRICE_META.FWC}/>)}
+        {FWC_STICKERS.map(s=><StickerCard key={s.key} s={s} flag="🌟" av={getAvail(s.key)} sel={!!cart[s.key]} qty={cart[s.key]?._qty||0} pr={getP(s)} onToggle={tog} onRemove={togRemove} m={PRICE_META.FWC}/>)}
       </div>
       {aC>0&&<StickyCart count={aC} total={aT} onClick={()=>setScreen("cart")}/>}
     </div>
@@ -470,8 +883,25 @@ function FWCScreen({setScreen,cart,setCart,getP,getAvail}){
 
 function CartScreen({setScreen,cart,setCart,getP,startRes,expiry,setTab}){
   const entries=useMemo(()=>Object.values(cart),[cart]);
-  const total=entries.reduce((a,s)=>a+getP(s),0);
+  const total=entries.reduce((a,s)=>a+(getP(s)*(s._qty||1)),0);
+  const totalItems=entries.reduce((a,s)=>a+(s._qty||1),0);
   const byGroup=useMemo(()=>{const m={};entries.forEach(s=>{if(s._isProduct){if(!m["__p"])m["__p"]={label:"Lotes & Productos",emoji:"🎴",items:[]};m["__p"].items.push(s);}else{const c=COUNTRIES.find(c2=>s.key.startsWith(c2.code+"_"))||{name:"FWC",flag:"🌟",code:"FWC"};if(!m[c.code])m[c.code]={label:c.name,emoji:c.flag,items:[]};m[c.code].items.push(s);}});return Object.values(m);},[entries]);
+  const updQty=(s,delta)=>setCart(p=>{
+    const n={...p};
+    if(!n[s.key||s.id])return n;
+    const q=(n[s.key||s.id]._qty||1)+delta;
+    if(q<=0)delete n[s.key||s.id];
+    else n[s.key||s.id]={...n[s.key||s.id],_qty:q};
+    return n;
+  });
+  // Build WA message with quantities
+  const buildWAMsg=()=>entries.map(s=>{
+    const qty=s._qty||1;
+    const emoji=PRICE_META[s.type]?.emoji||"📦";
+    const line=`${emoji} ${s.num||s.id} — ${s.name}`;
+    return qty>1?`${line} × ${qty} = $${fmt(getP(s)*qty)}`:` ${line} · $${fmt(getP(s))}`;
+  }).join("\n");
+
   if(!entries.length)return(
     <div style={{maxWidth:960,margin:"0 auto",padding:14}}>
       <button style={bBtn} onClick={()=>setScreen("shop")}>← Seguir buscando</button>
@@ -486,29 +916,63 @@ function CartScreen({setScreen,cart,setCart,getP,startRes,expiry,setTab}){
     <div style={{maxWidth:960,margin:"0 auto",padding:14}}>
       <button style={bBtn} onClick={()=>setScreen("shop")}>← Seguir buscando</button>
       <h1 style={{fontSize:20,fontWeight:800,color:B.dark,marginBottom:4}}>Tu carrito 🛒</h1>
-      <p style={{color:"#64748b",marginBottom:12,fontSize:13}}>{entries.length} items</p>
+      <p style={{color:"#64748b",marginBottom:12,fontSize:13}}>{entries.length} tipos · {totalItems} figuritas en total</p>
       {expiry&&<div style={{background:"#fef3c7",border:"1px solid #fbbf24",borderRadius:8,padding:"7px 13px",marginBottom:10,fontSize:12,fontWeight:700,color:"#92400e"}}><CDown expiry={expiry}/></div>}
-      {byGroup.map(g=>{const sub=g.items.reduce((a,s)=>a+getP(s),0);return(
+      {byGroup.map(g=>{const sub=g.items.reduce((a,s)=>a+(getP(s)*(s._qty||1)),0);return(
         <div key={g.label} style={{background:"#fff",borderRadius:11,marginBottom:9,border:"1px solid #e2e8f0",overflow:"hidden"}}>
-          <div style={{display:"flex",alignItems:"center",gap:9,padding:"9px 13px",background:"#f8fafc",borderBottom:"1px solid #e2e8f0"}}>
+          <div style={{display:"flex",alignItems:"center",gap:9,padding:"9px 13px",background:B.celLight,borderBottom:`1px solid ${B.cel}33`}}>
             <span style={{fontSize:20}}>{g.emoji}</span>
-            <div style={{flex:1}}><div style={{fontWeight:700,fontSize:13}}>{g.label}</div><div style={{fontSize:11,color:"#64748b"}}>{g.items.length} items</div></div>
-            <div style={{fontWeight:800,color:B.acc,fontSize:14}}>${fmt(sub)}</div>
+            <div style={{flex:1}}><div style={{fontWeight:700,fontSize:13,color:B.dark}}>{g.label}</div><div style={{fontSize:11,color:"#64748b"}}>{g.items.reduce((a,s)=>a+(s._qty||1),0)} figuritas</div></div>
+            <div style={{fontWeight:800,color:B.dark,fontSize:14}}>${fmt(sub)}</div>
           </div>
-          {g.items.map(s=>{const m=s._isProduct?{emoji:"🎴",label:"Producto",bg:"#f8fafc",color:"#475569"}:PRICE_META[s.type];return(
-            <div key={s.key||s.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 13px",borderBottom:"1px solid #f8fafc"}}>
+          {g.items.map(s=>{
+            const m=s._isProduct?{emoji:"🎴",label:"Producto",bg:"#f8fafc",color:"#475569"}:PRICE_META[s.type];
+            const qty=s._qty||1;
+            const subtotal=getP(s)*qty;
+            return(
+            <div key={s.key||s.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 13px",borderBottom:"1px solid #f8fafc"}}>
               <div style={{width:26,height:26,borderRadius:6,background:m.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0}}>{m.emoji}</div>
-              <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:B.dark}}>{s.num||s.id} — {s.name}</div><span style={{fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:4,background:m.bg,color:m.color||"#475569"}}>{m.label}</span></div>
-              <div style={{fontWeight:800,color:m.color||B.acc,marginRight:6,fontSize:12}}>${fmt(getP(s))}</div>
-              <button style={{background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:5,width:22,height:22,cursor:"pointer",fontSize:11,fontWeight:800}} onClick={()=>setCart(p=>{const n={...p};delete n[s.key||s.id];return n;})}>✕</button>
+              <div style={{flex:1}}>
+                <div style={{fontSize:12,fontWeight:600,color:B.dark}}>{s.num||s.id} — {s.name}</div>
+                <span style={{fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:4,background:m.bg,color:m.color||"#475569"}}>{m.label}</span>
+              </div>
+              {/* Controles cantidad */}
+              <div style={{display:"flex",alignItems:"center",gap:4}}>
+                <button style={{width:22,height:22,borderRadius:5,border:"1px solid #fee2e2",background:"#fee2e2",color:"#ef4444",fontWeight:800,fontSize:13,cursor:"pointer"}} onClick={()=>updQty(s,-1)}>−</button>
+                <span style={{minWidth:18,textAlign:"center",fontWeight:800,fontSize:13}}>{qty}</span>
+                <button style={{width:22,height:22,borderRadius:5,border:"1px solid #d1fae5",background:"#d1fae5",color:"#065f46",fontWeight:800,fontSize:13,cursor:"pointer"}} onClick={()=>updQty(s,+1)}>+</button>
+              </div>
+              <div style={{fontWeight:800,color:B.dark,marginLeft:4,fontSize:12,minWidth:60,textAlign:"right"}}>${fmt(subtotal)}</div>
             </div>
           );})}
         </div>
       );})}
-      <div style={{background:"#fff",borderRadius:11,padding:12,marginBottom:11,border:"1px solid #e2e8f0"}}>
-        <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0 0",fontSize:18,fontWeight:800,color:B.dark}}><span>TOTAL</span><span>${fmt(total)}</span></div>
+      {/* TOTAL */}
+      <div style={{background:"#fff",borderRadius:11,padding:"12px 16px",marginBottom:12,border:`1.5px solid ${B.cel}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <span style={{fontSize:16,fontWeight:700,color:B.dark}}>TOTAL</span>
+          <div style={{fontSize:11,color:"#64748b"}}>{totalItems} figuritas</div>
+        </div>
+        <span style={{fontSize:22,fontWeight:800,color:B.dark}}>${fmt(total)}</span>
       </div>
-      <button style={{...aBtn,width:"100%",padding:13,fontSize:15,borderRadius:12}} onClick={async()=>{const sk=entries.filter(s=>!s._isProduct).map(s=>s.key);if(sk.length&&!expiry)await startRes(sk);setScreen("checkout");}}>Continuar con el pedido →</button>
+      {/* BOTONES DE ACCIÓN */}
+      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:60}}>
+        <a href={`https://wa.me/${WA_NUM}?text=${encodeURIComponent(`*🛒 Pedido MESSIRVE2026*\n\n${buildWAMsg()}\n\n*💰 TOTAL: $${fmt(total)}* (${totalItems} figuritas)\n\n_Quiero coordinar el pago_`)}`}
+          target="_blank" rel="noreferrer"
+          style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,background:"linear-gradient(135deg,#25d366,#128c7e)",color:"#fff",borderRadius:14,padding:"14px",fontSize:15,fontWeight:800,textDecoration:"none"}}>
+          📲 Enviar pedido por WhatsApp
+        </a>
+        <button style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:B.celLight,color:B.dark,border:`1px solid ${B.cel}`,borderRadius:14,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}
+          onClick={()=>{
+            const txt=`🛒 Pedido MESSIRVE2026\n\n${buildWAMsg()}\n\n💰 TOTAL: $${fmt(total)} (${totalItems} figuritas)`;
+            navigator.clipboard?.writeText(txt).then(()=>alert("✅ ¡Lista copiada!")).catch(()=>alert(txt));
+          }}>
+          📋 Copiar lista para compartir
+        </button>
+        <button style={{...aBtn,width:"100%",padding:13,fontSize:14,borderRadius:12}} onClick={async()=>{const sk=entries.filter(s=>!s._isProduct).map(s=>s.key);if(sk.length&&!expiry)await startRes(sk);setScreen("checkout");}}>
+          Completar datos del pedido →
+        </button>
+      </div>
     </div>
   );
 }
@@ -630,20 +1094,22 @@ function CheckoutScreen({user,setUser,cart,setCart,getP,setScreen,placeOrder,exp
 
 // ══════ ADMIN PANEL ══════
 function AdminPanel({setAdmin,stock,saveStock,prices,savePrices,base,saveBase,users,orders,confirmOrder,res,getAvail,products,saveProducts}){
-  const [authed,setAuthed]=useState(false);const [pw,setPw]=useState("");const [tab,setTab]=useState("dashboard");
+  const [authed,setAuthed]=useState(false);const [usr,setUsr]=useState("");const [pw,setPw]=useState("");const [tab,setTab]=useState("dashboard");
+  const doLogin=()=>{if(usr===ADMIN_USER&&pw===ADMIN_PW)setAuthed(true);else alert("Usuario o contraseña incorrectos");};
   if(!authed)return(
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:B.dark}}>
       <GS/>
       <div style={{background:"#fff",borderRadius:16,padding:28,width:300,textAlign:"center"}}>
         <div style={{fontSize:36}}>🔐</div>
         <h2 style={{fontFamily:B.tf,fontSize:22,margin:"8px 0 12px"}}>PANEL ADMIN</h2>
-        <input type="password" style={{...inp,marginBottom:10}} placeholder="Contraseña" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(pw===ADMIN_PW?setAuthed(true):alert("Incorrecta"))}/>
-        <button style={{...aBtn,width:"100%",padding:11}} onClick={()=>pw===ADMIN_PW?setAuthed(true):alert("Contraseña incorrecta")}>Ingresar</button>
+        <input type="text" style={{...inp,marginBottom:10}} placeholder="Usuario" value={usr} onChange={e=>setUsr(e.target.value.toUpperCase())} onKeyDown={e=>e.key==="Enter"&&doLogin()}/>
+        <input type="password" style={{...inp,marginBottom:10}} placeholder="Contraseña" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doLogin()}/>
+        <button style={{...aBtn,width:"100%",padding:11}} onClick={doLogin}>Ingresar</button>
         <button style={{...bBtn,color:"#64748b",display:"block",margin:"10px auto 0"}} onClick={()=>setAdmin(false)}>← Volver al sitio</button>
       </div>
     </div>
   );
-  const tabs=[["dashboard","📊 Dashboard"],["orders","📋 Pedidos"],["sales","📈 Ventas"],["stock","📦 Stock"],["prices","💰 Precios"],["products","🎴 Productos"],["users","👥 Usuarios"]];
+  const tabs=[["dashboard","📊 Dashboard"],["orders","📋 Pedidos"],["sales","📈 Ventas"],["stock","📦 Stock"],["extras","✨ Extras"],["prices","💰 Precios"],["products","🎴 Productos"],["users","👥 Usuarios"]];
   return(
     <div style={{fontFamily:"'Outfit',sans-serif",minHeight:"100vh",background:"#f1f5f9"}}>
       <GS/>
@@ -659,9 +1125,41 @@ function AdminPanel({setAdmin,stock,saveStock,prices,savePrices,base,saveBase,us
         {tab==="orders"   &&<AOrders orders={orders} confirmOrder={confirmOrder}/>}
         {tab==="sales"    &&<ASales orders={orders}/>}
         {tab==="stock"    &&<AStock stock={stock} saveStock={saveStock}/>}
+        {tab==="extras"   &&<AExtras stock={stock} saveStock={saveStock}/>}
         {tab==="prices"   &&<APrices prices={prices} savePrices={savePrices} base={base} saveBase={saveBase}/>}
         {tab==="products" &&<AProducts products={products} saveProducts={saveProducts}/>}
         {tab==="users"    &&<AUsers users={users}/>}
+      </div>
+    </div>
+  );
+}
+
+function AExtras({stock,saveStock}){
+  const get=(id,ver)=>stock[`${id}_${ver}`]||0;
+  const upd=async(id,ver,val)=>saveStock({...stock,[`${id}_${ver}`]:Math.max(0,parseInt(val)||0)});
+  return(
+    <div>
+      <h2 style={{fontSize:17,fontWeight:800,color:B.dark,marginBottom:4}}>✨ Gestión de Extras</h2>
+      <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>20 jugadores × 4 versiones. Aparecen 1 cada 100 sobres. Editá el stock disponible.</p>
+      <div style={{background:"linear-gradient(135deg,#6d28d9,#9333ea)",borderRadius:10,padding:"10px 14px",marginBottom:12,color:"#fff",fontSize:12}}>
+        <b>Versiones:</b> Base (Púrpura) · Bronce · Plata · Oro — de menos a más raro
+      </div>
+      <div style={{background:"#fff",borderRadius:11,border:"1px solid #e2e8f0",overflow:"hidden"}}>
+        <div style={{display:"grid",gridTemplateColumns:"2fr 1.5fr 80px 80px 80px 80px",padding:"7px 12px",background:B.dark,color:"#fff",fontSize:10,fontWeight:700,gap:7}}>
+          <span>Jugador</span><span>País</span><span style={{textAlign:"center"}}>Base</span><span style={{textAlign:"center"}}>Bronce</span><span style={{textAlign:"center"}}>Plata</span><span style={{textAlign:"center"}}>Oro</span>
+        </div>
+        {EXTRA_PLAYERS.map(p=>(
+          <div key={p.id} style={{display:"grid",gridTemplateColumns:"2fr 1.5fr 80px 80px 80px 80px",padding:"6px 12px",borderBottom:"1px solid #f1f5f9",alignItems:"center",gap:7}}>
+            <span style={{fontWeight:700,fontSize:12,color:B.dark}}>{p.player}</span>
+            <span style={{fontSize:11,color:"#475569"}}>{p.flag} {p.country}</span>
+            {EXTRA_VERSIONS.map(v=>(
+              <div key={v.key} style={{textAlign:"center"}}>
+                <input type="number" style={{width:"100%",textAlign:"center",padding:"3px",border:`1px solid ${v.border}`,borderRadius:5,fontSize:12,fontWeight:700,background:get(p.id,v.key)>0?v.bg:"#fff",color:v.color}}
+                  value={get(p.id,v.key)} onChange={e=>upd(p.id,v.key,e.target.value)}/>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -675,43 +1173,135 @@ function ADash({orders,users,res,stock}){
   const confirmed=orders.filter(o=>o.status==="pagado");
   const pending=orders.filter(o=>o.status==="pendiente");
   const totalRev=confirmed.reduce((a,o)=>a+o.total,0);
-  const byType=Object.fromEntries(Object.keys(PRICE_META).map(t=>[t,ALL_STICKERS.filter(s=>s.type===t).reduce((a,s)=>a+(stock[s.key]||0),0)]));
-  const byCountry=COUNTRIES.map(c=>{const ss=buildCountryStickers(c);const tot=ss.reduce((a,s)=>a+(stock[s.key]||0),0);const bt={};Object.keys(PRICE_META).forEach(t=>{bt[t]=ss.filter(s=>s.type===t).reduce((a,s)=>a+(stock[s.key]||0),0);});return{...c,total:tot,byType:bt};}).sort((a,b)=>b.total-a.total);
+
+  // Stock por tipo
+  const byType={};
+  Object.keys(PRICE_META).forEach(t=>{
+    byType[t]=ALL_STICKERS.filter(s=>s.type===t).reduce((a,s)=>a+(stock[s.key]||0),0);
+  });
+  const fwcTotal=FWC_STICKERS.reduce((a,s)=>a+(stock[s.key]||0),0);
+
+  // Stock por país detallado
+  const byCountry=COUNTRIES.map(c=>{
+    const ss=buildCountryStickers(c);
+    const tot=ss.reduce((a,s)=>a+(stock[s.key]||0),0);
+    const bt={};
+    Object.keys(PRICE_META).forEach(t=>{bt[t]=ss.filter(s=>s.type===t).reduce((a,s)=>a+(stock[s.key]||0),0);});
+    const sinStock=ss.filter(s=>(stock[s.key]||0)===0).length;
+    return{...c,total:tot,byType:bt,sinStock,totalFigs:ss.length};
+  }).sort((a,b)=>b.total-a.total);
+
+  const [vistaStock,setVistaStock]=useState("pais");
+
   return(
     <div>
-      <h2 style={{fontSize:17,fontWeight:800,color:B.dark,marginBottom:11}}>Dashboard</h2>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:7,marginBottom:14}}>
+      <h2 style={{fontSize:17,fontWeight:800,color:B.dark,marginBottom:11}}>📊 Dashboard</h2>
+
+      {/* KPIs */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:7,marginBottom:14}}>
         <SB icon="👥" val={users.length} lbl="Usuarios"/>
-        <SB icon="📋" val={orders.length} lbl="Pedidos totales"/>
+        <SB icon="📋" val={orders.length} lbl="Pedidos"/>
         <SB icon="⏳" val={pending.length} lbl="Pendientes" color="#d97706"/>
         <SB icon="✅" val={confirmed.length} lbl="Confirmados" color="#10b981"/>
         <SB icon="⏱" val={activeRes} lbl="Reservas activas"/>
-        <SB icon="📦" val={totalStk} lbl="En stock"/>
-        <SB icon="💰" val={"$"+fmt(totalRev)} lbl="Ingresos" color={B.acc}/>
+        <SB icon="📦" val={totalStk} lbl="Figuritas en stock"/>
+        <SB icon="💰" val={"$"+fmt(totalRev)} lbl="Ingresos" color={B.dark}/>
       </div>
-      <div style={{background:"#fff",borderRadius:10,padding:11,border:"1px solid #e2e8f0",marginBottom:11}}>
-        <h3 style={{fontSize:12,fontWeight:700,marginBottom:8}}>📦 Stock por etiqueta</h3>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:6}}>
-          {Object.entries(PRICE_META).map(([type,m])=><div key={type} style={{background:m.bg,borderRadius:7,padding:"8px 9px",border:`1px solid ${m.border}`,textAlign:"center"}}><div style={{fontSize:14}}>{m.emoji}</div><div style={{fontWeight:800,fontSize:15,color:m.color}}>{byType[type]||0}</div><div style={{fontSize:9,color:m.color,opacity:.8}}>{m.label}</div></div>)}
-          <div style={{background:"#fef3c7",borderRadius:7,padding:"8px 9px",border:"1px solid #f59e0b",textAlign:"center"}}><div style={{fontSize:14}}>🌟</div><div style={{fontWeight:800,fontSize:15,color:"#92400e"}}>{FWC_STICKERS.reduce((a,s)=>a+(stock[s.key]||0),0)}</div><div style={{fontSize:9,color:"#92400e",opacity:.8}}>FWC</div></div>
-        </div>
-      </div>
-      <div style={{background:"#fff",borderRadius:10,border:"1px solid #e2e8f0",overflow:"hidden"}}>
-        <div style={{padding:"8px 11px",fontWeight:700,fontSize:12,borderBottom:"1px solid #f1f5f9"}}>📦 Stock por país — top 15</div>
-        <div style={{maxHeight:280,overflowY:"auto"}}>
-          {byCountry.slice(0,15).map(c=>(
-            <div key={c.code} style={{display:"flex",alignItems:"center",gap:7,padding:"5px 11px",borderBottom:"1px solid #f8fafc"}}>
-              <span style={{fontSize:15}}>{c.flag}</span>
-              <div style={{flex:1}}>
-                <div style={{fontWeight:600,fontSize:11}}>{c.name}</div>
-                <div style={{display:"flex",gap:3,marginTop:2,flexWrap:"wrap"}}>{Object.entries(c.byType).filter(([,v])=>v>0).map(([t,v])=>{const m=PRICE_META[t];return<span key={t} style={{fontSize:8,padding:"1px 4px",borderRadius:3,background:m.bg,color:m.color,fontWeight:700}}>{m.emoji}{v}</span>;})}</div>
-              </div>
-              <b style={{color:B.dark,fontSize:12}}>{c.total}</b>
-              <div style={{width:55,height:5,background:"#f1f5f9",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",background:B.acc,borderRadius:3,width:`${Math.min(100,(c.total/50)*100)}%`}}/></div>
+
+      {/* Stock por etiqueta */}
+      <div style={{background:"#fff",borderRadius:10,padding:12,border:"1px solid #e2e8f0",marginBottom:12}}>
+        <h3 style={{fontSize:13,fontWeight:700,marginBottom:10}}>📦 Stock total por tipo de figurita</h3>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))",gap:7}}>
+          {Object.entries(PRICE_META).map(([type,m])=>(
+            <div key={type} style={{background:m.bg,borderRadius:8,padding:"10px",border:`1px solid ${m.border}`,textAlign:"center"}}>
+              <div style={{fontSize:16,marginBottom:3}}>{m.emoji}</div>
+              <div style={{fontWeight:800,fontSize:18,color:m.color}}>{byType[type]||0}</div>
+              <div style={{fontSize:10,color:m.color,opacity:.8,fontWeight:600}}>{m.label}</div>
             </div>
           ))}
+          <div style={{background:"#fef3c7",borderRadius:8,padding:"10px",border:"1px solid #f59e0b",textAlign:"center"}}>
+            <div style={{fontSize:16,marginBottom:3}}>🌟</div>
+            <div style={{fontWeight:800,fontSize:18,color:"#92400e"}}>{fwcTotal}</div>
+            <div style={{fontSize:10,color:"#92400e",opacity:.8,fontWeight:600}}>FWC Especiales</div>
+          </div>
+          <div style={{background:B.celLight,borderRadius:8,padding:"10px",border:`1px solid ${B.cel}`,textAlign:"center"}}>
+            <div style={{fontSize:16,marginBottom:3}}>📦</div>
+            <div style={{fontWeight:800,fontSize:18,color:B.dark}}>{totalStk}</div>
+            <div style={{fontSize:10,color:B.dark,opacity:.8,fontWeight:600}}>TOTAL</div>
+          </div>
         </div>
       </div>
+
+      {/* Stock por país — detallado */}
+      <div style={{background:"#fff",borderRadius:10,border:"1px solid #e2e8f0",overflow:"hidden",marginBottom:12}}>
+        <div style={{padding:"10px 14px",borderBottom:"1px solid #f1f5f9",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+          <h3 style={{fontSize:13,fontWeight:700}}>🌍 Stock por selección — detalle completo</h3>
+          <div style={{display:"flex",gap:4}}>
+            {[["pais","Por país"],["sinstock","Sin stock"]].map(([v,l])=>(
+              <ChipBtn key={v} active={vistaStock===v} onClick={()=>setVistaStock(v)}>{l}</ChipBtn>
+            ))}
+          </div>
+        </div>
+        {/* Header tabla */}
+        <div style={{display:"grid",gridTemplateColumns:"2fr 60px 55px 55px 55px 55px 60px 55px",padding:"6px 14px",background:B.dark,color:"#fff",fontSize:9,fontWeight:700,gap:4,overflowX:"auto"}}>
+          <span>País</span>
+          <span style={{textAlign:"center"}}>FOIL</span>
+          <span style={{textAlign:"center"}}>TOP</span>
+          <span style={{textAlign:"center"}}>📸</span>
+          <span style={{textAlign:"center"}}>Base</span>
+          <span style={{textAlign:"center"}}>Sin stk</span>
+          <span style={{textAlign:"center",color:"#74c0fc"}}>TOTAL</span>
+          <span style={{textAlign:"center"}}>%</span>
+        </div>
+        <div style={{maxHeight:400,overflowY:"auto"}}>
+          {(vistaStock==="sinstock"?byCountry.filter(c=>c.sinStock>0):byCountry).map(c=>{
+            const pct=Math.round(((c.totalFigs-c.sinStock)/c.totalFigs)*100);
+            return(
+              <div key={c.code} style={{display:"grid",gridTemplateColumns:"2fr 60px 55px 55px 55px 55px 60px 55px",padding:"6px 14px",borderBottom:"1px solid #f8fafc",alignItems:"center",gap:4,fontSize:10,background:c.sinStock===c.totalFigs?"#fff5f5":c.sinStock===0?"#f0fdf4":"#fff"}}>
+                <div style={{display:"flex",alignItems:"center",gap:5}}>
+                  <span style={{fontSize:14}}>{c.flag}</span>
+                  <span style={{fontWeight:600,color:B.dark}}>{c.name}</span>
+                </div>
+                <span style={{textAlign:"center",fontWeight:700,color:"#1e40af"}}>{c.byType.FOIL||0}</span>
+                <span style={{textAlign:"center",fontWeight:700,color:"#6d28d9"}}>{c.byType.TOP||0}</span>
+                <span style={{textAlign:"center",fontWeight:700,color:"#065f46"}}>{c.byType.PHOTO||0}</span>
+                <span style={{textAlign:"center",color:"#374151"}}>{c.byType.BASE||0}</span>
+                <span style={{textAlign:"center",color:c.sinStock>0?"#ef4444":"#10b981",fontWeight:c.sinStock>0?700:400}}>{c.sinStock}</span>
+                <span style={{textAlign:"center",fontWeight:800,color:B.dark,fontSize:11}}>{c.total}</span>
+                <div style={{textAlign:"center"}}>
+                  <div style={{height:4,background:"#e2e8f0",borderRadius:2,overflow:"hidden"}}>
+                    <div style={{height:"100%",background:pct>50?"#10b981":pct>20?"#f59e0b":"#ef4444",width:`${pct}%`,borderRadius:2}}/>
+                  </div>
+                  <span style={{fontSize:8,color:"#94a3b8"}}>{pct}%</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {/* Totales */}
+        <div style={{display:"grid",gridTemplateColumns:"2fr 60px 55px 55px 55px 55px 60px 55px",padding:"8px 14px",background:B.celLight,fontSize:11,fontWeight:800,gap:4,borderTop:"2px solid #e2e8f0",color:B.dark}}>
+          <span>TOTAL GENERAL</span>
+          <span style={{textAlign:"center",color:"#1e40af"}}>{byCountry.reduce((a,c)=>a+(c.byType.FOIL||0),0)}</span>
+          <span style={{textAlign:"center",color:"#6d28d9"}}>{byCountry.reduce((a,c)=>a+(c.byType.TOP||0),0)}</span>
+          <span style={{textAlign:"center",color:"#065f46"}}>{byCountry.reduce((a,c)=>a+(c.byType.PHOTO||0),0)}</span>
+          <span style={{textAlign:"center"}}>{byCountry.reduce((a,c)=>a+(c.byType.BASE||0),0)}</span>
+          <span style={{textAlign:"center",color:"#ef4444"}}>{byCountry.reduce((a,c)=>a+c.sinStock,0)}</span>
+          <span style={{textAlign:"center",color:B.dark}}>{totalStk}</span>
+          <span style={{textAlign:"center"}}>—</span>
+        </div>
+      </div>
+
+      {/* Advertencia stock cero */}
+      {byCountry.filter(c=>c.total===0).length>0&&(
+        <div style={{background:"#fff5f5",borderRadius:10,padding:12,border:"1px solid #fecaca"}}>
+          <div style={{fontWeight:700,fontSize:12,color:"#991b1b",marginBottom:6}}>⚠️ Selecciones sin ningún stock:</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {byCountry.filter(c=>c.total===0).map(c=>(
+              <span key={c.code} style={{fontSize:11,padding:"2px 8px",borderRadius:6,background:"#fee2e2",color:"#991b1b",fontWeight:600}}>{c.flag} {c.name}</span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -795,37 +1385,213 @@ function ASales({orders}){
 }
 
 function AStock({stock,saveStock}){
-  const [srch,setSrch]=useState("");const [cf,setCf]=useState("Todos");const [bulk,setBulk]=useState("");
-  const all=useMemo(()=>ALL_STICKERS.map(s=>{const c=COUNTRIES.find(cx=>s.key.startsWith(cx.code+"_"));return{...s,cN:c?.name||"FWC",cF:c?.flag||"🌟",cC:c?.conf||"FWC"}}),[]);
-  const fil=useMemo(()=>all.filter(s=>(!srch||s.num.toLowerCase().includes(srch.toLowerCase())||s.name.toLowerCase().includes(srch.toLowerCase())||s.cN.toLowerCase().includes(srch.toLowerCase()))&&(cf==="Todos"||s.cC===cf)),[all,srch,cf]);
-  const upd=async(key,val)=>saveStock({...stock,[key]:Math.max(0,parseInt(val)||0)});
-  const applyBulk=async()=>{if(!bulk)return;const v=parseInt(bulk);if(isNaN(v))return;const n={};all.forEach(s=>n[s.key]=v);await saveStock(n);setBulk("");alert(`Stock de todas las figuritas: ${v}`);};
+  const [srch,setSrch]=useState("");
+  const [cf,setCf]=useState("Todos");
+  const [bulk,setBulk]=useState("");
+  const [saving,setSaving]=useState(false);
+  const [localStock,setLocalStock]=useState({...stock});
+  const [dirty,setDirty]=useState({});
+  // Paste-to-update stock
+  const [pasteTexto,setPasteTexto]=useState("");
+  const [pasteResult,setPasteResult]=useState(null);
+  const [modoVista,setModoVista]=useState("tabla"); // "tabla" | "paste"
+
+  useEffect(()=>{ setLocalStock({...stock}); },[stock]);
+
+  const all=useMemo(()=>ALL_STICKERS.map(s=>{
+    const c=COUNTRIES.find(cx=>s.key.startsWith(cx.code+"_"));
+    return{...s,cN:c?.name||"FWC",cF:c?.flag||"🌟",cC:c?.conf||"FWC"};
+  }),[]);
+
+  const fil=useMemo(()=>all.filter(s=>(
+    (!srch||s.num.toLowerCase().includes(srch.toLowerCase())||s.name.toLowerCase().includes(srch.toLowerCase())||s.cN.toLowerCase().includes(srch.toLowerCase()))&&
+    (cf==="Todos"||s.cC===cf)
+  )),[all,srch,cf]);
+
+  const updLocal=(key,val)=>{
+    const v=Math.max(0,parseInt(val)||0);
+    setLocalStock(p=>({...p,[key]:v}));
+    setDirty(p=>({...p,[key]:true}));
+  };
+
+  const saveAll=async()=>{
+    setSaving(true);
+    try{
+      await saveStock({...localStock});
+      setDirty({});
+      alert("✅ Stock guardado correctamente");
+    }catch(e){
+      alert("❌ Error al guardar. Intentá de nuevo.");
+    }
+    setSaving(false);
+  };
+
+  const applyBulk=async()=>{
+    if(!bulk)return;
+    const v=parseInt(bulk);
+    if(isNaN(v)||v<0){alert("Ingresá un número válido");return;}
+    if(!window.confirm(`¿Poner ${v} unidades a TODAS las figuritas (${all.length} figuritas)?`))return;
+    setSaving(true);
+    const n={};
+    all.forEach(s=>n[s.key]=v);
+    setLocalStock(n);
+    try{
+      await saveStock(n);
+      setBulk("");
+      alert(`✅ Stock masivo aplicado: ${v} unidades × ${all.length} figuritas`);
+    }catch(e){alert("❌ Error al guardar");}
+    setSaving(false);
+  };
+
+  // Paste-to-update: extrae códigos tipo MEX17, ARG_17, ARG17 del texto pegado
+  const extraerCodigos=(t)=>{
+    const encontrados=[];
+    t.split("\n").forEach(linea=>{
+      // Busca patrones como MEX17, ARG17, KOR_5, fwc1, s00
+      const m=linea.match(/\b([A-Za-z]{2,4}[_]?\d{1,3})\b/g);
+      if(m) m.forEach(cod=>encontrados.push(cod.toUpperCase().replace("_","")));
+    });
+    return [...new Set(encontrados)];
+  };
+
+  // Convierte código legible (MEX17) a key interna (MEX_17)
+  const codToKey=(cod)=>{
+    // Intentar match directo en all
+    const direct=all.find(s=>s.num.toUpperCase()===cod||s.key.toUpperCase()===cod||s.key.toUpperCase().replace("_","")===cod);
+    return direct?.key||null;
+  };
+
+  const aplicarPaste=async(signo)=>{
+    const codigos=extraerCodigos(pasteTexto);
+    if(codigos.length===0){setPasteResult({vacio:true});return;}
+    const newLocal={...localStock};
+    const ok=[];const noEncontrados=[];
+    codigos.forEach(cod=>{
+      const key=codToKey(cod);
+      if(key){
+        newLocal[key]=Math.max(0,(newLocal[key]||0)+signo);
+        ok.push(cod);
+        setDirty(p=>({...p,[key]:true}));
+      }else{
+        noEncontrados.push(cod);
+      }
+    });
+    setLocalStock(newLocal);
+    setPasteResult({ok,noEncontrados,signo});
+    setSaving(true);
+    try{
+      await saveStock(newLocal);
+      setDirty({});
+    }catch(e){alert("❌ Error al guardar");}
+    setSaving(false);
+  };
+
+  const totalDirty=Object.keys(dirty).length;
+
   return(
     <div>
-      <h2 style={{fontSize:17,fontWeight:800,color:B.dark,marginBottom:10}}>Gestión de Stock</h2>
-      <div style={{display:"flex",gap:6,marginBottom:7,flexWrap:"wrap"}}>
-        <input style={{...inp,flex:1,minWidth:150}} placeholder="Buscar figurita..." value={srch} onChange={e=>setSrch(e.target.value)}/>
-        <input style={{...inp,width:75}} type="number" placeholder="Bulk" value={bulk} onChange={e=>setBulk(e.target.value)}/>
-        <button style={{...aBtn,padding:"7px 13px",fontSize:11}} onClick={applyBulk}>Aplicar todo</button>
-      </div>
-      <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>{["Todos","Sede","CONMEBOL","UEFA","CAF","AFC","CONCACAF","OFC","FWC"].map(c=><ChipBtn key={c} active={cf===c} onClick={()=>setCf(c)}>{c}</ChipBtn>)}</div>
-      <div style={{background:"#fff",borderRadius:10,border:"1px solid #e2e8f0",overflow:"hidden"}}>
-        <div style={{display:"grid",gridTemplateColumns:"1.2fr 2fr 1fr 95px",padding:"5px 11px",background:B.dark,color:"#fff",fontSize:9,fontWeight:700,gap:6}}><span>Nro.</span><span>Figurita</span><span>Tipo</span><span>Stock</span></div>
-        <div style={{maxHeight:440,overflowY:"auto"}}>
-          {fil.map(s=>{const m=PRICE_META[s.type],qty=stock[s.key]||0;return(
-            <div key={s.key} style={{display:"grid",gridTemplateColumns:"1.2fr 2fr 1fr 95px",padding:"4px 11px",borderBottom:"1px solid #f1f5f9",alignItems:"center",gap:6,fontSize:10}}>
-              <span style={{fontWeight:700}}>{s.cF} {s.num}</span>
-              <span style={{color:"#475569"}}>{s.name}</span>
-              <span style={{fontSize:8,fontWeight:700,padding:"2px 4px",borderRadius:3,display:"inline-block",background:m.bg,color:m.color}}>{m.emoji}</span>
-              <div style={{display:"flex",gap:3,alignItems:"center"}}>
-                <button style={qBtn} onClick={()=>upd(s.key,qty-1)}>−</button>
-                <input type="number" style={{width:35,textAlign:"center",padding:"2px",border:"1px solid #e2e8f0",borderRadius:3,fontSize:10,fontWeight:700}} value={qty} onChange={e=>upd(s.key,e.target.value)}/>
-                <button style={qBtn} onClick={()=>upd(s.key,qty+1)}>+</button>
-              </div>
-            </div>
-          );})}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:8}}>
+        <h2 style={{fontSize:17,fontWeight:800,color:B.dark}}>📦 Gestión de Stock</h2>
+        <div style={{display:"flex",gap:5}}>
+          <ChipBtn active={modoVista==="tabla"} onClick={()=>setModoVista("tabla")}>📋 Tabla</ChipBtn>
+          <ChipBtn active={modoVista==="paste"} onClick={()=>setModoVista("paste")}>📥 Pegar lista</ChipBtn>
+          {totalDirty>0&&(
+            <button style={{...aBtn,padding:"7px 14px",fontSize:11,background:"linear-gradient(135deg,#10b981,#059669)"}} onClick={saveAll} disabled={saving}>
+              {saving?"Guardando...":"💾 Guardar "+totalDirty}
+            </button>
+          )}
         </div>
       </div>
+
+      {/* MODO PASTE */}
+      {modoVista==="paste"&&(
+        <div style={{background:"#fff",borderRadius:12,border:"1px solid #e2e8f0",padding:16,marginBottom:12}}>
+          <h3 style={{fontSize:14,fontWeight:700,color:B.dark,marginBottom:6}}>📥 Actualizar stock por lista</h3>
+          <p style={{fontSize:12,color:"#64748b",marginBottom:12,lineHeight:1.6}}>
+            Pegá la lista de figuritas tal cual la tenés (ej: del carrito de WhatsApp).
+            El sistema detecta automáticamente los códigos como <b>MEX17</b>, <b>ARG5</b>, <b>KOR3</b>, etc.
+            y suma o resta 1 al stock de cada una.
+          </p>
+          <textarea
+            style={{width:"100%",boxSizing:"border-box",padding:12,borderRadius:10,border:"1px solid #cbd5e1",fontSize:13,fontFamily:"monospace",resize:"vertical",minHeight:110,marginBottom:10}}
+            placeholder={"👕 MEX17 — Raúl Jiménez · $475\n⭐ ARG17 — Lionel Messi · $39000\n🛡️ KOR1 — Escudo · $1300"}
+            value={pasteTexto}
+            onChange={e=>{setPasteTexto(e.target.value);setPasteResult(null);}}
+          />
+          <div style={{display:"flex",gap:10,marginBottom:12}}>
+            <button style={{flex:1,padding:"11px 0",border:"none",borderRadius:10,background:"#16a34a",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}} onClick={()=>aplicarPaste(+1)} disabled={saving}>
+              ➕ Sumar stock
+            </button>
+            <button style={{flex:1,padding:"11px 0",border:"none",borderRadius:10,background:"#dc2626",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}} onClick={()=>aplicarPaste(-1)} disabled={saving}>
+              ➖ Restar stock
+            </button>
+          </div>
+          {pasteResult&&(
+            <div style={{padding:12,borderRadius:10,background:"#f1f5f9",fontSize:13}}>
+              {pasteResult.vacio
+                ? <span style={{color:"#b91c1c"}}>⚠️ No encontré ningún código. Revisá que el texto tenga algo como MEX17 o ARG5.</span>
+                : <>
+                    <div style={{color:"#15803d",marginBottom:4}}>
+                      ✅ {pasteResult.signo>0?"Sumado":"Restado"} a {pasteResult.ok.length} figuritas: <b>{pasteResult.ok.join(", ")}</b>
+                    </div>
+                    {pasteResult.noEncontrados.length>0&&(
+                      <div style={{color:"#b91c1c"}}>
+                        ⚠️ No encontrados: {pasteResult.noEncontrados.join(", ")}
+                      </div>
+                    )}
+                    <div style={{color:"#0369a1",marginTop:4,fontWeight:700}}>💾 Guardado automáticamente</div>
+                  </>
+              }
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODO TABLA */}
+      {modoVista==="tabla"&&(<>
+        <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>
+          <input style={{...inp,flex:2,minWidth:150}} placeholder="🔍 Buscar figurita, jugador o país..." value={srch} onChange={e=>setSrch(e.target.value)}/>
+          <input style={{...inp,width:80}} type="number" min="0" placeholder="Cant." value={bulk} onChange={e=>setBulk(e.target.value)}/>
+          <button style={{...aBtn,padding:"8px 12px",fontSize:11,whiteSpace:"nowrap"}} onClick={applyBulk} disabled={saving}>Aplicar a todas</button>
+        </div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:10}}>
+          {["Todos","Sede","CONMEBOL","UEFA","CAF","AFC","CONCACAF","OFC","FWC"].map(c=>(
+            <ChipBtn key={c} active={cf===c} onClick={()=>setCf(c)}>{c}</ChipBtn>
+          ))}
+        </div>
+        <p style={{fontSize:11,color:"#94a3b8",marginBottom:8}}>{fil.length} figuritas · <b style={{color:totalDirty>0?"#f59e0b":"#10b981"}}>{totalDirty>0?`${totalDirty} sin guardar`:"Todo guardado ✓"}</b></p>
+        <div style={{background:"#fff",borderRadius:10,border:"1px solid #e2e8f0",overflow:"hidden"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1.5fr 2fr 1fr 110px",padding:"6px 12px",background:B.dark,color:"#fff",fontSize:10,fontWeight:700,gap:6}}>
+            <span>Número</span><span>Figurita</span><span>Tipo</span><span>Stock</span>
+          </div>
+          <div style={{maxHeight:500,overflowY:"auto"}}>
+            {fil.map(s=>{
+              const m=PRICE_META[s.type];
+              const qty=localStock[s.key]??0;
+              const isDirty=dirty[s.key];
+              return(
+                <div key={s.key} style={{display:"grid",gridTemplateColumns:"1.5fr 2fr 1fr 110px",padding:"5px 12px",borderBottom:"1px solid #f1f5f9",alignItems:"center",gap:6,fontSize:10,background:isDirty?"#fffbeb":"#fff"}}>
+                  <span style={{fontWeight:700,color:B.dark}}>{s.cF} {s.num}</span>
+                  <span style={{color:"#475569",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</span>
+                  <span style={{fontSize:9,fontWeight:700,padding:"2px 5px",borderRadius:4,background:m.bg,color:m.color,display:"inline-block"}}>{m.emoji}</span>
+                  <div style={{display:"flex",gap:3,alignItems:"center"}}>
+                    <button style={{...qBtn,background:qty>0?"#fee2e2":"#f1f5f9",color:qty>0?"#ef4444":"#94a3b8"}} onClick={()=>updLocal(s.key,qty-1)}>−</button>
+                    <input type="number" min="0"
+                      style={{width:38,textAlign:"center",padding:"3px 2px",border:`1px solid ${isDirty?"#f59e0b":"#e2e8f0"}`,borderRadius:4,fontSize:11,fontWeight:800,background:isDirty?"#fef9c3":"#fff"}}
+                      value={qty} onChange={e=>updLocal(s.key,e.target.value)}/>
+                    <button style={{...qBtn,background:"#d1fae5",color:"#065f46"}} onClick={()=>updLocal(s.key,qty+1)}>+</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {totalDirty>0&&(
+          <button style={{...aBtn,width:"100%",marginTop:10,padding:12,fontSize:13,background:"linear-gradient(135deg,#10b981,#059669)"}} onClick={saveAll} disabled={saving}>
+            {saving?"⏳ Guardando...":"💾 Guardar todos los cambios ("+totalDirty+")"}
+          </button>
+        )}
+      </>)}
     </div>
   );
 }
