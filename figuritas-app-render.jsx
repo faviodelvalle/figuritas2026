@@ -10,39 +10,52 @@ const CLOUD_NAME = "dxen86i43";
 const CLOUDINARY_BASE = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload`;
 const IMG_OPTS = "q_auto,f_auto,w_300";
 
-// Mapeo completo: key interna → nombre real en Cloudinary (iPhone original)
+// ══════════════════════════════════════════════
+// CÓMO FUNCIONAN LAS FOTOS (LEER ESTO)
+// ──────────────────────────────────────────────
+// El sistema busca cada foto en Cloudinary por su NÚMERO de figurita.
+// El nombre del archivo en Cloudinary tiene que ser igual al número
+// que se ve en la app:
+//    MEX1.jpg, MEX2.jpg ... MEX20.jpg
+//    RSA1.jpg ... RSA20.jpg
+//    KOR1.jpg ... KOR20.jpg
+//    ARG1.jpg ... ARG20.jpg
+//    FWC00.jpg (logo Panini), FWC1.jpg ... FWC17.jpg
+//
+// AL SUBIR A CLOUDINARY (Settings > Upload):
+//   ✔ "Use filename as Public ID" = ACTIVADO
+//   ✘ "Unique filename"           = DESACTIVADO
+// Así NO te agrega el sufijo random (_uykrv8) y todo coincide solo.
+//
+// STICKER_MAP = excepciones. Solo para fotos que YA están subidas con
+// un nombre distinto (ej: Argentina, subida antes con sufijo). Si una
+// key está acá, este nombre manda; si no, usa el número limpio.
+// ══════════════════════════════════════════════
 const STICKER_MAP = {
-  // FWC Especiales
-  "s00":"IMG_1665","fwc1":"IMG_1666","fwc2":"IMG_1667","fwc3":"IMG_1668",
-  "fwc4":"IMG_1669","fwc5":"IMG_1670","fwc6":"IMG_1671","fwc7":"IMG_1672",
-  "fwc8":"IMG_1673",
-  // FIFA Museum
-  "fwc9":"IMG_1677","fwc10":"IMG_1678","fwc11":"IMG_1679","fwc12":"IMG_1680",
-  "fwc13":"IMG_1681","fwc14":"IMG_1682","fwc15":"IMG_1683","fwc16":"IMG_1684",
-  "fwc17":"IMG_1685","fwc18":"IMG_1686","fwc19":"IMG_1687",
-  // México
-  "MEX_1":"IMG_1688","MEX_2":"IMG_1689","MEX_3":"IMG_1690","MEX_4":"IMG_1691",
-  "MEX_5":"IMG_1692","MEX_6":"IMG_1693","MEX_7":"IMG_1694","MEX_8":"IMG_1695",
-  "MEX_9":"IMG_1696","MEX_10":"IMG_1697","MEX_11":"IMG_1698","MEX_12":"IMG_1699",
-  "MEX_13":"IMG_1700","MEX_14":"IMG_1701","MEX_15":"IMG_1704","MEX_16":"IMG_1705",
-  "MEX_17":"IMG_1706","MEX_18":"IMG_1707","MEX_19":"IMG_1708","MEX_20":"IMG_1709",
-  // Sudáfrica
-  "RSA_1":"IMG_1711","RSA_2":"IMG_1712","RSA_3":"IMG_1713","RSA_4":"IMG_1714",
-  "RSA_5":"IMG_1715","RSA_6":"IMG_1716","RSA_7":"IMG_1717","RSA_8":"IMG_1718",
-  "RSA_9":"IMG_1719","RSA_10":"IMG_1720","RSA_11":"IMG_1721","RSA_12":"IMG_1722",
-  "RSA_13":"IMG_1723","RSA_14":"IMG_1724","RSA_15":"IMG_1725","RSA_16":"IMG_1726",
-  "RSA_17":"IMG_1727","RSA_18":"IMG_1728","RSA_19":"IMG_1729","RSA_20":"IMG_1730",
-  // Corea del Sur
-  "KOR_1":"IMG_1733","KOR_2":"IMG_1734","KOR_3":"IMG_1735","KOR_4":"IMG_1736",
-  "KOR_5":"IMG_1737","KOR_6":"IMG_1738","KOR_7":"IMG_1739","KOR_8":"IMG_1740",
-  "KOR_9":"IMG_1741","KOR_10":"IMG_1742","KOR_11":"IMG_1743","KOR_12":"IMG_1744",
-  "KOR_13":"IMG_1745","KOR_14":"IMG_1746","KOR_15":"IMG_1747","KOR_16":"IMG_1748",
-  "KOR_17":"IMG_1749","KOR_18":"IMG_1750","KOR_19":"IMG_1751","KOR_20":"IMG_1752",
+  // Argentina — ya subida en Cloudinary con sufijo (no tocar)
+  "ARG_1":"IMG_2538_uykrv8","ARG_2":"IMG_2539_vyi2xd","ARG_3":"IMG_2540_kuingm","ARG_4":"IMG_2541_ncnktc",
+  "ARG_5":"IMG_2542_f35gh5","ARG_6":"IMG_2543_bjpzav","ARG_7":"IMG_2544_ydw33t","ARG_8":"IMG_2545_pjigtq",
+  "ARG_9":"IMG_2546_kwh0yp","ARG_10":"IMG_2547_bj6o9u","ARG_11":"IMG_2548_iezwa4","ARG_12":"IMG_2549_tjh9mf",
+  "ARG_13":"IMG_2550_cwlr0w","ARG_14":"IMG_2551_zx3xul","ARG_15":"IMG_2552_fcspex","ARG_16":"IMG_2553_spmul5",
+  "ARG_17":"IMG_2554_j7iom0","ARG_18":"IMG_2555_tgnhhu","ARG_19":"IMG_2556_y5owrl","ARG_20":"IMG_2557_un8ggs",
+  // 👉 Si re-subís MEX/RSA/KOR/FWC con sufijo en vez de nombre limpio,
+  //    pegá acá las excepciones igual que ARG. Si las subís con nombre
+  //    limpio (MEX1, MEX2...), NO hace falta tocar nada acá.
 };
 
+// Convierte la key interna en el nombre de archivo "limpio" esperado.
+//   "MEX_1" -> "MEX1"   |   "fwc3" -> "FWC3"   |   "s00" -> "FWC00"
+function cleanStickerName(key) {
+  if (key === "s00") return "FWC00";
+  if (/^fwc\d+$/.test(key)) return "FWC" + key.slice(3);
+  return key.replace("_", "");
+}
+
 function getStickerImage(key) {
-  const filename = STICKER_MAP[key];
-  if (!filename) return null;
+  if (!key) return null;
+  // 1) Si hay excepción en el mapa, usar ese nombre exacto.
+  // 2) Si no, usar el nombre limpio (número de la figurita).
+  const filename = STICKER_MAP[key] || cleanStickerName(key);
   return `${CLOUDINARY_BASE}/${IMG_OPTS}/figuritas2026/${filename}.jpg`;
 }
 
@@ -1109,7 +1122,7 @@ function AdminPanel({setAdmin,stock,saveStock,prices,savePrices,base,saveBase,us
       </div>
     </div>
   );
-  const tabs=[["dashboard","📊 Dashboard"],["orders","📋 Pedidos"],["sales","📈 Ventas"],["stock","📦 Stock"],["extras","✨ Extras"],["prices","💰 Precios"],["products","🎴 Productos"],["users","👥 Usuarios"]];
+  const tabs=[["dashboard","📊 Dashboard"],["orders","📋 Pedidos"],["sales","📈 Ventas"],["stock","📦 Stock"],["faltantes","📉 Faltantes"],["extras","✨ Extras"],["prices","💰 Precios"],["products","🎴 Productos"],["users","👥 Usuarios"]];
   return(
     <div style={{fontFamily:"'Outfit',sans-serif",minHeight:"100vh",background:"#f1f5f9"}}>
       <GS/>
@@ -1125,6 +1138,7 @@ function AdminPanel({setAdmin,stock,saveStock,prices,savePrices,base,saveBase,us
         {tab==="orders"   &&<AOrders orders={orders} confirmOrder={confirmOrder}/>}
         {tab==="sales"    &&<ASales orders={orders}/>}
         {tab==="stock"    &&<AStock stock={stock} saveStock={saveStock}/>}
+        {tab==="faltantes"&&<AFaltantes stock={stock}/>}
         {tab==="extras"   &&<AExtras stock={stock} saveStock={saveStock}/>}
         {tab==="prices"   &&<APrices prices={prices} savePrices={savePrices} base={base} saveBase={saveBase}/>}
         {tab==="products" &&<AProducts products={products} saveProducts={saveProducts}/>}
@@ -1232,6 +1246,29 @@ function ADash({orders,users,res,stock}){
         </div>
       </div>
 
+      {/* Gráfico por país (ilustrativo) */}
+      <div style={{background:"#fff",borderRadius:10,padding:12,border:"1px solid #e2e8f0",marginBottom:12}}>
+        <h3 style={{fontSize:13,fontWeight:700,marginBottom:10}}>📊 Stock por selección (gráfico)</h3>
+        {(()=>{
+          const max=Math.max(1,...byCountry.map(c=>c.total));
+          const top=byCountry.slice(0,16);
+          return(
+            <div style={{display:"flex",flexDirection:"column",gap:5}}>
+              {top.map(c=>(
+                <div key={c.code} style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{width:118,fontSize:11,color:B.dark,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.flag} {c.name}</span>
+                  <div style={{flex:1,height:16,background:"#f1f5f9",borderRadius:8,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${(c.total/max)*100}%`,background:c.total===0?"#fecaca":`linear-gradient(90deg,${B.cel},${B.acc})`,borderRadius:8,transition:"width .3s"}}/>
+                  </div>
+                  <span style={{width:40,textAlign:"right",fontSize:11,fontWeight:800,color:c.total===0?"#ef4444":B.dark}}>{c.total}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+        <div style={{fontSize:10,color:"#94a3b8",marginTop:8}}>Top 16 selecciones con más stock. Barras ilustrativas (proporción sobre la de mayor stock).</div>
+      </div>
+
       {/* Stock por país — detallado */}
       <div style={{background:"#fff",borderRadius:10,border:"1px solid #e2e8f0",overflow:"hidden",marginBottom:12}}>
         <div style={{padding:"10px 14px",borderBottom:"1px solid #f1f5f9",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
@@ -1300,6 +1337,97 @@ function ADash({orders,users,res,stock}){
               <span key={c.code} style={{fontSize:11,padding:"2px 8px",borderRadius:6,background:"#fee2e2",color:"#991b1b",fontWeight:600}}>{c.flag} {c.name}</span>
             ))}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AFaltantes({stock}){
+  const [umbral,setUmbral]=useState(0);   // 0 = solo sin stock; o "≤N"
+  const [incFwc,setIncFwc]=useState(true);
+  const [copiado,setCopiado]=useState(false);
+
+  // Armar faltantes agrupados por selección
+  const grupos=[];
+  if(incFwc){
+    const fs=FWC_STICKERS.filter(s=>(stock[s.key]||0)<=umbral).map(s=>({num:s.num,name:s.name,stk:stock[s.key]||0}));
+    if(fs.length)grupos.push({code:"FWC",name:"FWC Especiales",flag:"🌟",items:fs});
+  }
+  COUNTRIES.forEach(c=>{
+    const ss=buildCountryStickers(c).filter(s=>(stock[s.key]||0)<=umbral).map(s=>({num:s.num,name:s.name,stk:stock[s.key]||0}));
+    if(ss.length)grupos.push({code:c.code,name:c.name,flag:c.flag,items:ss});
+  });
+  const totalFalt=grupos.reduce((a,g)=>a+g.items.length,0);
+
+  // Texto para copiar y pegar (se regenera solo con el stock)
+  let texto=`📋 FALTANTES DE STOCK — ${fmtDate(Date.now())}\n`;
+  texto+=umbral===0?"(figuritas con 0 unidades)\n":`(figuritas con ${umbral} o menos)\n`;
+  texto+=`Total: ${totalFalt} figuritas · ${grupos.length} selecciones\n`;
+  grupos.forEach(g=>{
+    texto+=`\n${g.flag} ${g.name} (${g.items.length}):\n`;
+    g.items.forEach(it=>{texto+=`  ${it.num} — ${it.name}${umbral>0?` · stock ${it.stk}`:""}\n`;});
+  });
+
+  const copiar=async()=>{
+    try{await navigator.clipboard.writeText(texto);setCopiado(true);setTimeout(()=>setCopiado(false),1800);}
+    catch{const ta=document.getElementById("faltTxt");if(ta){ta.select();document.execCommand("copy");setCopiado(true);setTimeout(()=>setCopiado(false),1800);}}
+  };
+
+  return(
+    <div>
+      <h2 style={{fontSize:17,fontWeight:800,color:B.dark,marginBottom:4}}>📉 Faltantes de stock</h2>
+      <p style={{fontSize:12,color:"#64748b",marginBottom:12}}>Resumen siempre actualizado de las figuritas que faltan, agrupadas por selección. Se actualiza solo según el stock. Copialo y pegalo donde lo necesites.</p>
+
+      {/* Filtros */}
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:12}}>
+        <span style={{fontSize:11,color:"#64748b",fontWeight:600}}>Mostrar:</span>
+        {[[0,"Sin stock (0)"],[2,"≤ 2"],[5,"≤ 5"]].map(([v,l])=>(
+          <ChipBtn key={v} active={umbral===v} onClick={()=>setUmbral(v)}>{l}</ChipBtn>
+        ))}
+        <ChipBtn active={incFwc} onClick={()=>setIncFwc(!incFwc)}>{incFwc?"✓ ":""}Incluir FWC</ChipBtn>
+      </div>
+
+      {/* KPIs */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:7,marginBottom:12}}>
+        <SB icon="📉" val={totalFalt} lbl="Figuritas faltantes" color="#ef4444"/>
+        <SB icon="🌍" val={grupos.length} lbl="Selecciones afectadas"/>
+      </div>
+
+      {/* Resumen copiable */}
+      <div style={{background:"#fff",borderRadius:10,border:"1px solid #e2e8f0",padding:12,marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:8}}>
+          <h3 style={{fontSize:13,fontWeight:700}}>📋 Resumen para copiar y pegar</h3>
+          <button onClick={copiar} style={{...aBtn,padding:"7px 14px",background:copiado?"#10b981":B.acc}}>
+            {copiado?"✓ Copiado":"📋 Copiar todo"}
+          </button>
+        </div>
+        <textarea id="faltTxt" readOnly value={texto}
+          style={{width:"100%",boxSizing:"border-box",minHeight:200,padding:10,borderRadius:8,border:"1px solid #cbd5e1",fontSize:12,fontFamily:"monospace",resize:"vertical",color:"#1e293b",background:"#f8fafc"}}/>
+      </div>
+
+      {/* Listado visual por selección */}
+      {totalFalt===0?(
+        <div style={{background:"#f0fdf4",borderRadius:10,padding:16,border:"1px solid #bbf7d0",textAlign:"center",color:"#15803d",fontWeight:700,fontSize:13}}>
+          ✅ No hay faltantes con este filtro. ¡Todo con stock!
+        </div>
+      ):(
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {grupos.map(g=>(
+            <div key={g.code} style={{background:"#fff",borderRadius:10,border:"1px solid #e2e8f0",overflow:"hidden"}}>
+              <div style={{padding:"8px 12px",background:"#fff5f5",borderBottom:"1px solid #fee2e2",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontWeight:700,fontSize:13,color:B.dark}}>{g.flag} {g.name}</span>
+                <span style={{fontSize:11,fontWeight:700,color:"#ef4444",background:"#fee2e2",borderRadius:12,padding:"2px 9px"}}>{g.items.length} faltan</span>
+              </div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,padding:"10px 12px"}}>
+                {g.items.map(it=>(
+                  <span key={it.num} style={{fontSize:11,padding:"3px 9px",borderRadius:6,background:"#f1f5f9",color:"#475569",border:"1px solid #e2e8f0"}}>
+                    <b style={{color:B.dark}}>{it.num}</b> {it.name}{umbral>0&&<span style={{color:"#ef4444"}}> · {it.stk}</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
